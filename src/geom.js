@@ -114,8 +114,8 @@ function MakeRect(p, w, h, vx, vy)
 }
 function Rectangle(x, y, width, height)
 {
-  this.x = x;
-  this.y = y;
+  this.x = (x !== undefined)? x : 0;
+  this.y = (y !== undefined)? y : 0;
   this.width = (width !== undefined)? width : 0;
   this.height = (height !== undefined)? height : 0;
 }

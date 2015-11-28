@@ -270,7 +270,7 @@ function MenuTask(textbox, font)
   font = (font !== undefined)? font : textbox.font;
   this._TextTask(textbox);
   this.font = font;
-  this.cursor = MakeSegment(font, new Vec2(), '>');
+  this.cursor = MakeSegment(new Vec2(), '>', font);
   this.vertical = false;
   this.items = [];
   this.current = null;
@@ -357,6 +357,10 @@ define(TextBoxTT, TextBox, 'TextBox', {
     this._TextBox_render(ctx, bx, by);
     var cursor = this.cursor;
     if (cursor !== null) {
+      if (this.bounds !== null) {
+	bx += this.bounds.x;
+	by += this.bounds.y;
+      }
       if (blink(this.getTime(), this.blinking)) {
 	cursor.font.renderString(
 	  ctx, cursor.text,

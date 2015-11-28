@@ -1,26 +1,5 @@
 // game.js
 
-function isObstacle(c) {
-  return (c < 0 || c == 2);
-}
-
-// ChatBox
-function ChatBox(frame)
-{
-  this._TextBoxTT(frame);
-}
-
-define(ChatBox, TextBoxTT, 'TextBoxTT', {
-  render: function (ctx, bx, by) {
-    this._TextBoxTT_render(ctx, bx, by);
-    var rect = this.frame.inflate(10, 10);
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = 'white';
-    ctx.strokeRect(bx+rect.x, by+rect.y, rect.width, rect.height);
-  },
-  
-});
-
 // BarBox
 function BarBox(bounds)
 {
@@ -41,37 +20,69 @@ define(BarBox, Sprite, 'Sprite', {
   },
 });
 
+// ChatBox
+function ChatBox(frame)
+{
+  this._TextBoxTT(frame);
+}
+
+define(ChatBox, TextBoxTT, 'TextBoxTT', {
+  render: function (ctx, bx, by) {
+    this._TextBoxTT_render(ctx, bx, by);
+    if (this.bounds !== null) {
+      bx += this.bounds.x;
+      by += this.bounds.y;
+    }
+    var rect = this.frame.inflate(10, 10);
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = 'white';
+    ctx.strokeRect(bx+rect.x, by+rect.y, rect.width, rect.height);
+  },
+  
+});
+
+// Employee
+function Employee(bounds, hitbox, tileno)
+{
+  this._Actor(bounds, hitbox, tileno);
+}
+define(Employee, Actor, 'Actor', {
+});
+
 // Worker
 function Worker(bounds)
 {
   this.zorder = -1;
-  this._Actor(bounds, bounds, 2);
+  this._Employee(bounds, bounds, 2);
 }
 
-define(Worker, Actor, 'Actor', {
+define(Worker, Employee, 'Employee', {
 });
 
 // Assistant
 function Assistant(bounds)
 {
   this.zorder = 0;
-  this._Actor(bounds, bounds, 4);
+  this._Employee(bounds, bounds, 4);
 }
 
-define(Assistant, Actor, 'Actor', {
+define(Assistant, Employee, 'Employee', {
 });
 
 // Researcher
 function Researcher(bounds)
 {
   this.zorder = 0;
-  this._Actor(bounds, bounds, 5);
+  this._Employee(bounds, bounds, 5);
 }
 
-define(Researcher, Actor, 'Actor', {
+define(Researcher, Employee, 'Employee', {
 });
 
 // Movable
+function isObstacle(c) {
+  return (c < 0 || c == 2);
+}
 function Movable(bounds, hitbox, tileno)
 {
   this._Actor(bounds, hitbox, tileno);
@@ -105,6 +116,15 @@ define(Movable, Actor, 'Actor', {
 		    d0.y+d1.y+d2.y);
   },
   
+});
+
+// Fire
+function Fire(bounds)
+{
+  this._Movable(bounds, bounds.inflate(-4,0), 10);
+}
+
+define(Fire, Movable, 'Movable', {
 });
 
 // Player
@@ -165,21 +185,21 @@ define(Game, GameScene, 'GameScene', {
     var app = this.app;
     var map = copyArray([
       [0,0,0,0,0, 0,0,0,0,0, 0,0,0,0,0],
-      [0,1,0,0,0, 1,0,0,0,1, 0,0,0,1,0],
+      [0,1,0,0,0, 1,0,14,0,1, 0,0,0,1,0],
       [0,0,5,0,0, 0,0,2,2,0, 0,0,7,13,0],
       [0,0,3,0,0, 0,0,0,0,0, 0,2,2,2,2],
       
       [2,2,2,2,0, 0,0,6,4,4, 4,4,4,4,4],
       [0,0,3,0,0, 0,2,2,0,0, 0,0,0,0,0],
       [0,1,3,0,0, 1,0,0,0,1, 0,0,0,1,0],
-      [0,0,3,0,0, 0,0,0,2,2, 0,0,0,0,0],
+      [0,0,3,0,0, 0,0,0,2,2, 0,0,0,12,0],
       [0,11,3,11,0, 11,0,0,0,0, 0,0,2,2,2],
       
       [2,2,2,2,2, 2,2,0,0,0, 0,0,0,0,0],
-      [0,0,3,0,0, 0,0,0,0,0, 0,0,0,12,0],
+      [0,0,3,0,0, 0,0,0,0,0, 0,0,8,8,0],
       [0,1,3,0,0, 1,0,0,0,1, 2,2,2,2,2],
-      [0,0,3,0,0, 0,0,0,0,0, 0,0,0,0,0],
-      [0,0,3,0,0, 0,0,10,0,0, 0,0,0,0,0],
+      [0,0,3,0,0, 0,0,0,0,0, 0,0,0,8,8],
+      [9,9,9,9,9, 9,2,0,10,0, 0,0,8,8,8],
       [2,2,2,2,2, 2,2,2,2,2, 2,2,2,2,2],
     ]);
     this.tilemap = new TileMap(this.tileSize, map);
@@ -214,6 +234,10 @@ define(Game, GameScene, 'GameScene', {
 	scene.addObject(new Researcher(tilemap.map2coord(new Vec2(x,y))));
 	tilemap.set(x, y, 0);
 	break;
+      case 14:
+	scene.addObject(new Fire(tilemap.map2coord(new Vec2(x,y))));
+	tilemap.set(x, y, 0);
+	break;
       }
     });
     
@@ -245,10 +269,12 @@ define(Game, GameScene, 'GameScene', {
     this.chatBox = new ChatBox(new Rectangle(16, 16, this.window.width-32, this.chatSize));
     this.chatBox.font = app.font;
     this.chatBox.padding = 16;
+    this.chatBox.visible = false;
     this.chatBox.background = 'black';
-    this.chatBox.addDisplay("'ELLO, BOSS.", app.font, 1);
     this.chatBox.start(this);
-    this.height0 = this.window.height-this.chatBox.frame.height-32;
+    this.height0 = this.chatBox.frame.height+32;
+    this.height1 = this.window.height-this.chatBox.frame.height-32;
+    this.chatBox.bounds = new Rectangle(0, this.height1);
 
     this.money = 1000;
     this.loan = 0;
@@ -319,17 +345,56 @@ define(Game, GameScene, 'GameScene', {
     this.statusText.render(ctx, bx, by);
     this.barDemand.render(ctx, bx, by);
     this.barSupply.render(ctx, bx, by);
-    if (this.player.bounds.y-window.y < this.height0) {
-      this.chatBox.render(ctx, bx, by+this.height0);
-    } else {
+    if (this.chatBox.visible) {
+      if (this.height1 <= this.player.bounds.y-window.y) {
+	this.chatBox.bounds.y = 0;
+      } else if (this.player.bounds.y-window.y <= this.height0) {
+	this.chatBox.bounds.y = this.height1;
+      }
       this.chatBox.render(ctx, bx, by);
+    }
+  },
+
+  keydown: function (key) {
+    this._GameScene_keydown(key);
+    if (this.chatBox.visible) {
+      this.chatBox.keydown(key);
+    } else {
+      if (getKeySym(key) == 'action') {
+	var actors = this.findObjects(
+	  this.player.bounds.inflate(16,16),
+	  (function (obj) { return obj instanceof Employee; }));
+	for (var i = 0; i < actors.length; i++) {
+	  this.talkTo(actors[i]);
+	  break;
+	}
+      }
+    }
+  },
+
+  talkTo: function (actor) {
+    if (actor instanceof Assistant) {
+      var scene = this;
+      this.chatBox.visible = true;
+      this.chatBox.addDisplay("GOOD DAY, SIR.", this.app.font, 1);
+      var menu = this.chatBox.addMenu();
+      menu.sound = this.app.audios.beep;
+      menu.addItem(new Vec2(80, 30), "HIRE");
+      menu.addItem(new Vec2(80, 40), "LOAN");
+      menu.addItem(new Vec2(80, 50), "REPAY");
+      menu.selected.subscribe(function (obj, value) {
+	log("selected:"+value);
+	scene.textbox.visible = false;
+      });
     }
   },
 
   update: function () {
     this._GameScene_update();
-    this.player.usermove(this.app.key_dir);
-    this.player.jump(this.app.key_dir.y < 0);
+    if (!this.chatBox.visible) {
+      this.player.usermove(this.app.key_dir);
+      this.player.jump(this.app.key_dir.y < 0);
+    }
     this.setCenter(this.player.bounds.inflate(100,50));
     this.textDate.text = '2015/01';
     this.textHealth.text = '';
