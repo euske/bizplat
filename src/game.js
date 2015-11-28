@@ -1,45 +1,51 @@
 // game.js
 
 function isObstacle(c) {
-  return c != 0;
+  return (c < 0 || c == 2);
 }
 
-// Player
-function Player(bounds)
+// Worker
+function Worker(bounds)
 {
-  this._Actor(bounds, bounds, 0);
-  this.speed = 4;
+  this.zorder = -1;
+  this._Actor(bounds, bounds, 1);
+}
+
+define(Worker, Actor, 'Actor', {
+});
+
+// Assistant
+function Assistant(bounds)
+{
+  this.zorder = 0;
+  this._Actor(bounds, bounds, 2);
+}
+
+define(Assistant, Actor, 'Actor', {
+});
+
+// Researcher
+function Researcher(bounds)
+{
+  this.zorder = 0;
+  this._Actor(bounds, bounds, 3);
+}
+
+define(Researcher, Actor, 'Actor', {
+});
+
+// Movable
+function Movable(bounds, hitbox, tileno)
+{
+  this._Actor(bounds, hitbox, 0);
   this.gravity = 2;
   this.maxspeed = 8;
-  this.jumpacc = -6;
-  this.maxacctime = 8;
   this.velocity = new Vec2(0, 0);
   this._landed = false;
-  this._jumpt = -1;
 }
 
-define(Player, Actor, 'Actor', {
-  jump: function (jumping) {
-    if (jumping) {
-      if (this._landed) {
-	this._jumpt = 0;
-	this.velocity.y = this.jumpacc;
-	playSound(this.scene.app.audios.jump);
-      }
-    } else {
-      this._jumpt = -1;
-    }
-  },
-
-  usermove: function (v) {
-    this.velocity.x = v.x*this.speed;
-  },
-
+define(Movable, Actor, 'Actor', {
   update: function () {
-    if (0 <= this._jumpt && this._jumpt < this.maxacctime) {
-      this._jumpt++;
-      this.velocity.y -= this.gravity;
-    }
     this.velocity.y += this.gravity;
     this.velocity.y = clamp(-this.maxspeed, this.velocity.y, this.maxspeed);
     var v = this.getMove(this.velocity);
@@ -61,6 +67,44 @@ define(Player, Actor, 'Actor', {
     return new Vec2(d0.x+d1.x+d2.x,
 		    d0.y+d1.y+d2.y);
   },
+  
+});
+
+// Player
+function Player(bounds)
+{
+  this._Movable(bounds, bounds.inflate(-6,0), 0);
+  this.zorder = 1;
+  this.speed = 4;
+  this.jumpacc = -6;
+  this.maxacctime = 8;
+  this._jumpt = -1;
+}
+
+define(Player, Movable, 'Movable', {
+  usermove: function (v) {
+    this.velocity.x = v.x*this.speed;
+  },
+  
+  jump: function (jumping) {
+    if (jumping) {
+      if (this._landed) {
+	this._jumpt = 0;
+	this.velocity.y = this.jumpacc;
+	playSound(this.scene.app.audios.jump);
+      }
+    } else {
+      this._jumpt = -1;
+    }
+  },
+
+  update: function () {
+    if (0 <= this._jumpt && this._jumpt < this.maxacctime) {
+      this._jumpt++;
+      this.velocity.y -= this.gravity;
+    }
+    this._Movable_update();
+  },
 
 });
 
@@ -77,25 +121,26 @@ define(Game, GameScene, 'GameScene', {
   init: function () {
     this._GameScene_init();
 
+    var scene = this;
     var app = this.app;
     var map = copyArray([
-      [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
-      [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
-      [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
-      [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
-      [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+      [0,0,0,0,0, 0,0,0,0,0, 0,0,0,0,0],
+      [0,1,0,0,0, 1,0,0,0,1, 0,0,0,1,0],
+      [0,0,5,0,0, 0,0,2,2,0, 0,0,7,13,0],
+      [0,0,3,0,0, 0,0,0,0,0, 0,2,2,2,2],
       
-      [0,0,0,0, 0,0,0,0, 0,0,0,0, 1,1,0,0, 0,0,0,0],
-      [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
-      [0,0,0,0, 0,0,0,0, 0,0,0,1, 0,0,0,0, 0,0,0,0],
-      [0,0,0,0, 0,0,0,0, 1,1,1,1, 0,0,0,0, 0,0,0,0],
-      [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+      [2,2,2,2,0, 0,0,6,4,4, 4,4,4,4,4],
+      [0,0,3,0,0, 0,2,2,0,0, 0,0,0,0,0],
+      [0,1,3,0,0, 1,0,0,0,1, 0,0,0,1,0],
+      [0,0,3,0,0, 0,0,0,2,2, 0,0,0,0,0],
+      [0,11,3,11,0, 11,0,0,0,0, 0,0,2,2,2],
       
-      [0,0,1,1, 1,1,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
-      [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
-      [0,0,0,0, 0,0,0,0, 1,1,0,0, 0,0,0,0, 1,1,0,0],
-      [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
-      [1,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1],
+      [2,2,2,2,2, 2,2,0,0,0, 0,0,0,0,0],
+      [0,0,3,0,0, 0,0,0,0,0, 0,0,0,12,0],
+      [0,1,3,0,0, 1,0,0,0,1, 2,2,2,2,2],
+      [0,0,3,0,0, 0,0,0,0,0, 0,0,0,0,0],
+      [0,0,3,0,0, 0,0,10,0,0, 0,0,0,0,0],
+      [2,2,2,2,2, 2,2,2,2,2, 2,2,2,2,2],
     ]);
     this.tilemap = new TileMap(this.tilesize, map);
     this.world = new Rectangle(
@@ -107,9 +152,30 @@ define(Game, GameScene, 'GameScene', {
       Math.min(this.world.width, 240),
       Math.min(this.world.height, this.frame.height));
 
-    var rect = new Rectangle(1, 10, 1, 1);
-    this.player = new Player(this.tilemap.map2coord(rect));
-    this.addObject(this.player);
+    this.player = null;
+
+    var tilemap = this.tilemap;
+    tilemap.apply(function (x, y, c) {
+      switch (c) {
+      case 10:
+	scene.player = new Player(tilemap.map2coord(new Vec2(x,y)));
+	scene.addObject(scene.player);
+	tilemap.set(x, y, 0);
+	break;
+      case 11:
+	scene.addObject(new Worker(tilemap.map2coord(new Vec2(x,y))));
+	tilemap.set(x, y, 0);
+	break;
+      case 12:
+	scene.addObject(new Assistant(tilemap.map2coord(new Vec2(x,y))));
+	tilemap.set(x, y, 0);
+	break;
+      case 13:
+	scene.addObject(new Researcher(tilemap.map2coord(new Vec2(x,y))));
+	tilemap.set(x, y, 0);
+	break;
+      }
+    });
     
     // show a banner.
     var scene = this;
@@ -123,7 +189,7 @@ define(Game, GameScene, 'GameScene', {
     this.addObject(textbox);
 
     var tt = new TextBoxTT(new Rectangle(10, 10, 200, 100));
-    tt.addDisplay(app.font, 'THIS IS GAEM.\nYES IT IS.', app.audios.beep, 8);
+    tt.addDisplay(app.font, 'THIS IS GAEM.\nYES IT IS.', 1);
     this.addObject(tt);
   },
   
@@ -144,11 +210,6 @@ define(Game, GameScene, 'GameScene', {
     }
     this.window.x = clamp(0, this.window.x, this.world.width-this.window.width);
     this.window.y = clamp(0, this.window.y, this.world.height-this.window.height);
-  },
-
-  set_action: function (action) {
-    this._GameScene_set_action(action);
-    this.player.jump(action);
   },
 
   render: function (ctx, bx, by) {
@@ -177,7 +238,11 @@ define(Game, GameScene, 'GameScene', {
       var obj = this.sprites[i];
       if (obj.scene !== this) continue;
       if (obj.visible) {
-	obj.render(ctx, bx-window.x, by-window.y);
+	if (obj.bounds === null) {
+	  obj.render(ctx, bx, by);
+	} else {
+	  obj.render(ctx, bx-window.x, by-window.y);
+	}
       }
     }
 
@@ -193,6 +258,7 @@ define(Game, GameScene, 'GameScene', {
   update: function () {
     this._GameScene_update();
     this.player.usermove(this.app.key_dir);
+    this.player.jump(this.app.key_dir.y < 0);
     this.setCenter(this.player.bounds.inflate(100,50));
   },
 
