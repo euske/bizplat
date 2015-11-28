@@ -104,7 +104,7 @@ define(Game, GameScene, 'GameScene', {
       this.tilemap.height * this.tilesize);
     this.window = new Rectangle(
       0, 0,
-      Math.min(this.world.width, this.frame.width),
+      Math.min(this.world.width, 240),
       Math.min(this.world.height, this.frame.height));
 
     var rect = new Rectangle(1, 10, 1, 1);
@@ -146,10 +146,15 @@ define(Game, GameScene, 'GameScene', {
     this.window.y = clamp(0, this.window.y, this.world.height-this.window.height);
   },
 
+  set_action: function (action) {
+    this._GameScene_set_action(action);
+    this.player.jump(action);
+  },
+
   render: function (ctx, bx, by) {
     // Fill with the background color.
     ctx.fillStyle = 'rgb(0,0,0)';
-    ctx.fillRect(bx, by, this.app.screen.width, this.app.screen.height);
+    ctx.fillRect(bx, by, this.frame.width, this.frame.height);
 
     var tilesize = this.tilesize;
     var window = this.window;
@@ -167,17 +172,28 @@ define(Game, GameScene, 'GameScene', {
       ctx, this.app.tiles, ft,
       bx+fx, by+fy, x0, y0, x1-x0+1, y1-y0+1);
 
-    this._GameScene_render(ctx, bx, by);
+    // Draw the sprites.
+    for (var i = 0; i < this.sprites.length; i++) {
+      var obj = this.sprites[i];
+      if (obj.scene !== this) continue;
+      if (obj.visible) {
+	obj.render(ctx, bx-window.x, by-window.y);
+      }
+    }
+
+    ctx.fillStyle = 'rgb(0,0,0)';
+    ctx.fillRect(bx+this.window.width, by,
+		 this.frame.width-this.window.width, this.frame.height);
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = 'white';
+    ctx.strokeRect(bx+this.window.width+2, by+2,
+		   this.frame.width-this.window.width-4, this.frame.height-4);
   },
 
   update: function () {
     this._GameScene_update();
     this.player.usermove(this.app.key_dir);
-  },
-
-  set_action: function (action) {
-    this._GameScene_set_action(action);
-    this.player.jump(action);
+    this.setCenter(this.player.bounds.inflate(100,50));
   },
 
 });
