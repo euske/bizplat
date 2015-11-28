@@ -75,21 +75,15 @@ function rnd(a, b)
   return int(frnd(a, b));
 }
 
-// format: pretty print a number.
-function format(v, n, c)
+// rformat: format right aligned.
+function rformat(v, n, c)
 {
   n = (n !== undefined)? n : 3;
   c = (c !== undefined)? c : ' ';
-  var s = '';
-  while (s.length < n) {
-    s = (v % 10)+s;
-    v = Math.floor(v/10);
-    if (v <= 0) break;
+  while (v.length < n) {
+    v = c+v;
   }
-  while (s.length < n) {
-    s = c+s;
-  }
-  return s;
+  return v;
 }
 
 // copyArray(a): deep copy of an Array.

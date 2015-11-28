@@ -24,6 +24,7 @@ function App(framerate, frame, images, audios, labels)
   this.sprites = this.images.sprites;
   this.tiles = this.images.tiles;
   this.font = new Font(this.images.font, 'white');
+  this.colorfont = new Font(this.images.font);
   
   this._key_left = false;
   this._key_right = false;

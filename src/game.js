@@ -4,11 +4,48 @@ function isObstacle(c) {
   return (c < 0 || c == 2);
 }
 
+// ChatBox
+function ChatBox(frame)
+{
+  this._TextBoxTT(frame);
+}
+
+define(ChatBox, TextBoxTT, 'TextBoxTT', {
+  render: function (ctx, bx, by) {
+    this._TextBoxTT_render(ctx, bx, by);
+    var rect = this.frame.inflate(10, 10);
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = 'white';
+    ctx.strokeRect(bx+rect.x, by+rect.y, rect.width, rect.height);
+  },
+  
+});
+
+// BarBox
+function BarBox(bounds)
+{
+  this._Sprite(bounds);
+  this.value = 0;
+}
+
+define(BarBox, Sprite, 'Sprite', {
+  render: function (ctx, bx, by) {
+    ctx.fillStyle = 'green';
+    ctx.fillRect(bx+this.bounds.x, by+this.bounds.y,
+		 Math.floor(this.value*this.bounds.width),
+		 this.bounds.height);
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = 'white';
+    ctx.strokeRect(bx+this.bounds.x+.5, by+this.bounds.y+.5,
+		   this.bounds.width, this.bounds.height);
+  },
+});
+
 // Worker
 function Worker(bounds)
 {
   this.zorder = -1;
-  this._Actor(bounds, bounds, 1);
+  this._Actor(bounds, bounds, 2);
 }
 
 define(Worker, Actor, 'Actor', {
@@ -18,7 +55,7 @@ define(Worker, Actor, 'Actor', {
 function Assistant(bounds)
 {
   this.zorder = 0;
-  this._Actor(bounds, bounds, 2);
+  this._Actor(bounds, bounds, 4);
 }
 
 define(Assistant, Actor, 'Actor', {
@@ -28,7 +65,7 @@ define(Assistant, Actor, 'Actor', {
 function Researcher(bounds)
 {
   this.zorder = 0;
-  this._Actor(bounds, bounds, 3);
+  this._Actor(bounds, bounds, 5);
 }
 
 define(Researcher, Actor, 'Actor', {
@@ -37,7 +74,7 @@ define(Researcher, Actor, 'Actor', {
 // Movable
 function Movable(bounds, hitbox, tileno)
 {
-  this._Actor(bounds, hitbox, 0);
+  this._Actor(bounds, hitbox, tileno);
   this.gravity = 2;
   this.maxspeed = 8;
   this.velocity = new Vec2(0, 0);
@@ -73,7 +110,8 @@ define(Movable, Actor, 'Actor', {
 // Player
 function Player(bounds)
 {
-  this._Movable(bounds, bounds.inflate(-6,0), 0);
+  this._Movable(bounds, bounds.inflate(-6,0), 1);
+  this.health = 5;
   this.zorder = 1;
   this.speed = 4;
   this.jumpacc = -6;
@@ -114,7 +152,9 @@ define(Player, Movable, 'Movable', {
 function Game(app)
 {
   this._GameScene(app);
-  this.tilesize = 16;
+  this.tileSize = 16;
+  this.statusSize = 80;
+  this.chatSize = 64;
 }
 
 define(Game, GameScene, 'GameScene', {
@@ -142,14 +182,14 @@ define(Game, GameScene, 'GameScene', {
       [0,0,3,0,0, 0,0,10,0,0, 0,0,0,0,0],
       [2,2,2,2,2, 2,2,2,2,2, 2,2,2,2,2],
     ]);
-    this.tilemap = new TileMap(this.tilesize, map);
+    this.tilemap = new TileMap(this.tileSize, map);
     this.world = new Rectangle(
       0, 0,
-      this.tilemap.width * this.tilesize,
-      this.tilemap.height * this.tilesize);
+      this.tilemap.width * this.tileSize,
+      this.tilemap.height * this.tileSize);
     this.window = new Rectangle(
       0, 0,
-      Math.min(this.world.width, 240),
+      Math.min(this.world.width, this.frame.width-this.statusSize),
       Math.min(this.world.height, this.frame.height));
 
     this.player = null;
@@ -177,20 +217,47 @@ define(Game, GameScene, 'GameScene', {
       }
     });
     
-    // show a banner.
-    var scene = this;
-    var textbox = new TextBox(this.frame);
-    textbox.putText(app.font, ['GAME!!1'], 'center', 'center');
-    textbox.duration = app.framerate*2;
-    textbox.update = function () {
-      TextBox.prototype.update.call(textbox);
-      textbox.visible = blink(scene.ticks, app.framerate/2);
-    };
-    this.addObject(textbox);
+    var x0 = this.frame.width-this.statusSize+4;
+    var y0 = 4;
+    var text = new TextBox(new Rectangle(x0, y0, this.statusSize-8, this.frame.height-8));
+    text.font = app.font;
+    text.addSegment(new Vec2(x0,y0), 'EUSKO');
+    text.addSegment(new Vec2(x0,y0+10), 'CORP.');
+    text.addSegment(new Vec2(x0,y0+60), 'MONEY');
+    text.addSegment(new Vec2(x0,y0+80), 'LOAN');
+    text.addSegment(new Vec2(x0,y0+100), 'REVENUE');
+    text.addSegment(new Vec2(x0,y0+120), 'COST');
+    text.addSegment(new Vec2(x0,y0+150), 'DEMAND');
+    text.addSegment(new Vec2(x0,y0+170), 'SUPPLY');
+    text.addSegment(new Vec2(x0,y0+190), 'QUALITY');
+    text.addSegment(new Vec2(x0+30,y0+210), '/UNIT');
+    this.statusText = text;
+    this.textDate = text.addSegment(new Vec2(x0,y0+30), '2015/01');
+    this.textHealth = text.addSegment(new Vec2(x0,y0+40), '\x7f', app.colorfont);
+    this.textMoney = text.addSegment(new Vec2(x0,y0+70), '$0');
+    this.textLoan = text.addSegment(new Vec2(x0,y0+90), '$0');
+    this.textRevenue = text.addSegment(new Vec2(x0,y0+110), '$0');
+    this.textCost = text.addSegment(new Vec2(x0,y0+130), '$0');
+    this.textQuality = text.addSegment(new Vec2(x0,y0+200), '$0');
+    this.barDemand = new BarBox(new Rectangle(x0+10, y0+158, 50, 8));
+    this.barSupply = new BarBox(new Rectangle(x0+10, y0+178, 50, 8));
 
-    var tt = new TextBoxTT(new Rectangle(10, 10, 200, 100));
-    tt.addDisplay(app.font, 'THIS IS GAEM.\nYES IT IS.', 1);
-    this.addObject(tt);
+    this.chatBox = new ChatBox(new Rectangle(16, 16, this.window.width-32, this.chatSize));
+    this.chatBox.font = app.font;
+    this.chatBox.padding = 16;
+    this.chatBox.background = 'black';
+    this.chatBox.addDisplay("'ELLO, BOSS.", app.font, 1);
+    this.chatBox.start(this);
+    this.height0 = this.window.height-this.chatBox.frame.height-32;
+
+    this.money = 1000;
+    this.loan = 0;
+    this.revenue = 0;
+    this.cost = 0;
+    this.demand = 0.5;
+    this.supply = 0.5;
+    this.quality = 0;
+    
   },
   
   setCenter: function (rect) {
@@ -214,18 +281,18 @@ define(Game, GameScene, 'GameScene', {
 
   render: function (ctx, bx, by) {
     // Fill with the background color.
-    ctx.fillStyle = 'rgb(0,0,0)';
+    ctx.fillStyle = 'black';
     ctx.fillRect(bx, by, this.frame.width, this.frame.height);
 
-    var tilesize = this.tilesize;
+    var tileSize = this.tileSize;
     var window = this.window;
     var tilemap = this.tilemap;
-    var x0 = Math.floor(window.x/tilesize);
-    var y0 = Math.floor(window.y/tilesize);
-    var x1 = Math.ceil((window.x+window.width)/tilesize);
-    var y1 = Math.ceil((window.y+window.height)/tilesize);
-    var fx = x0*tilesize-window.x;
-    var fy = y0*tilesize-window.y;
+    var x0 = Math.floor(window.x/tileSize);
+    var y0 = Math.floor(window.y/tileSize);
+    var x1 = Math.ceil((window.x+window.width)/tileSize);
+    var y1 = Math.ceil((window.y+window.height)/tileSize);
+    var fx = x0*tileSize-window.x;
+    var fy = y0*tileSize-window.y;
 
     // Draw the tilemap.
     var ft = (function (x,y,c) { return c; });
@@ -237,22 +304,26 @@ define(Game, GameScene, 'GameScene', {
     for (var i = 0; i < this.sprites.length; i++) {
       var obj = this.sprites[i];
       if (obj.scene !== this) continue;
-      if (obj.visible) {
-	if (obj.bounds === null) {
-	  obj.render(ctx, bx, by);
-	} else {
-	  obj.render(ctx, bx-window.x, by-window.y);
-	}
+      if (!obj.visible) continue;
+      if (obj.bounds === null) {
+	obj.render(ctx, bx, by);
+      } else {
+	obj.render(ctx, bx-window.x, by-window.y);
       }
     }
 
-    ctx.fillStyle = 'rgb(0,0,0)';
-    ctx.fillRect(bx+this.window.width, by,
-		 this.frame.width-this.window.width, this.frame.height);
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = 'white';
-    ctx.strokeRect(bx+this.window.width+2, by+2,
-		   this.frame.width-this.window.width-4, this.frame.height-4);
+    ctx.fillStyle = 'black';
+    ctx.fillRect(bx+window.width, by,
+		 this.frame.width-window.width, this.frame.height);
+
+    this.statusText.render(ctx, bx, by);
+    this.barDemand.render(ctx, bx, by);
+    this.barSupply.render(ctx, bx, by);
+    if (this.player.bounds.y-window.y < this.height0) {
+      this.chatBox.render(ctx, bx, by+this.height0);
+    } else {
+      this.chatBox.render(ctx, bx, by);
+    }
   },
 
   update: function () {
@@ -260,6 +331,19 @@ define(Game, GameScene, 'GameScene', {
     this.player.usermove(this.app.key_dir);
     this.player.jump(this.app.key_dir.y < 0);
     this.setCenter(this.player.bounds.inflate(100,50));
+    this.textDate.text = '2015/01';
+    this.textHealth.text = '';
+    for (var i = 0; i < this.player.health; i++) {
+      this.textHealth.text += '\x7f';
+    }
+    this.textMoney.text = rformat('$'+this.money, 8);
+    this.textLoan.text = rformat('$'+this.loan, 8);
+    this.textRevenue.text = rformat('$'+this.revenue+'/M', 8);
+    this.textCost.text = rformat('$'+this.cost+'/M', 8);
+    this.textQuality.text = rformat('$'+this.quality, 8);
+    this.barDemand.value = this.demand;
+    this.barSupply.value = this.supply;
+    this.chatBox.update();
   },
 
 });
