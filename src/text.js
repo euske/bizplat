@@ -255,8 +255,10 @@ define(DisplayTask, TextTask, 'TextTask', {
   },
 
   ff: function () {
-    this.textbox.addText(this.text.substr(this._index), this.font);
-    this._index = this.text.length;
+    while (this._index < this.text.length) {
+      this.textbox.addText(this.text.substr(this._index, 1), this.font);
+      this._index++;
+    }
     this.die();
   },
 

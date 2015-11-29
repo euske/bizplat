@@ -752,7 +752,7 @@ define(Game, GameScene, 'GameScene', {
     }
     cost += Math.floor(this.loan*0.1);
     this.cost = cost;
-    this.textCost.text = rformat('$'+this.cost+'/M', 8);
+    this.textCost.text = rformat('$'+this.cost+'/m', 8);
   },
 
   updateSupply: function () {
@@ -770,7 +770,7 @@ define(Game, GameScene, 'GameScene', {
   updateRevenue: function () {
     var revenue = Math.min(this.supply, this.demand)*this.quality;
     this.revenue = Math.floor(400*revenue);
-    this.textRevenue.text = rformat('$'+this.revenue+'/M', 8);
+    this.textRevenue.text = rformat('$'+this.revenue+'/m', 8);
   },
 
   updateMoney: function () {
@@ -821,12 +821,14 @@ define(Game, GameScene, 'GameScene', {
 
   playerDied: function () {
     log("playerDied");
+    this.app.lockKeys();
     this.chatBox.visible = true;
     this.chatBox.clear();
     this.chatBox.addDisplay('You died.\nBut Business goes on.\nYou can keep watching\nor restart the game.', 1);
   },
   wentBankrupt: function () {
     log("wentBankrupt");
+    this.app.lockKeys();
     this.chatBox.visible = true;
     this.chatBox.clear();
     this.chatBox.addDisplay('Your company went bankrupt.\nYou can keep watching\nor restart the game.', 1);
@@ -844,7 +846,7 @@ define(Game, GameScene, 'GameScene', {
       menu.vertical = true;
       menu.sound = app.audios.beep;
       menu.current = menu.addItem(new Vec2(40, 30), 'Nothing', null);
-      menu.addItem(new Vec2(40, 40), 'Hire Worker ($100/M)',
+      menu.addItem(new Vec2(40, 40), 'Hire Worker ($100/m)',
 		   (function () { scene.hireWorker(); }));
       menu.addItem(new Vec2(40, 50), 'Borrow $500',
 		   (function () { scene.borrowMoney(); }));
@@ -926,7 +928,7 @@ define(Game, GameScene, 'GameScene', {
     this.chatBox.visible = true;
     this.chatBox.clear();
     this.chatBox.addDisplay('"We borrowed $'+v+'.\n'+
-			    ' Interest is $'+interest+'/MO."', 1);
+			    ' Interest is $'+interest+'/mo."', 1);
     this.updateMoney();
     this.updateCost();
   },
@@ -945,7 +947,7 @@ define(Game, GameScene, 'GameScene', {
     this.chatBox.visible = true;
     this.chatBox.clear();
     this.chatBox.addDisplay('"We repayed $'+v+'.\n'+
-			    ' Interest is $'+interest+'/MO."', 1);
+			    ' Interest is $'+interest+'/mo."', 1);
     this.updateMoney();
     this.updateCost();
   },
@@ -969,7 +971,7 @@ define(Game, GameScene, 'GameScene', {
     this.chatBox.visible = true;
     this.chatBox.clear();
     this.chatBox.addDisplay('"I become better!\n'+
-			    ' My wage is now $'+worker.wage+'/MO."', 1);
+			    ' My wage is now $'+worker.wage+'/mo."', 1);
     this.updateMoney();
     this.updateCost();
     this.updateSupply();
