@@ -28,7 +28,7 @@ function ChatBox(frame, font)
   this._TextBoxTT(frame, font);
   this.linespace = 3;
   this.padding = 8;
-  this.background = 'black';
+  this.background = 'rgba(0,0,0,0.8)';
 }
 
 define(ChatBox, TextBoxTT, 'TextBoxTT', {
@@ -42,6 +42,29 @@ define(ChatBox, TextBoxTT, 'TextBoxTT', {
     ctx.lineWidth = 2;
     ctx.strokeStyle = 'white';
     ctx.strokeRect(bx+rect.x, by+rect.y, rect.width, rect.height);
+  },
+  
+});
+
+// TextParticle
+function TextParticle(center, font, text)
+{
+  var size = font.getSize(text);
+  var bounds = MakeRect(center, 0, 0).inflate(size.x/2, size.y/2);
+  this._Sprite(bounds);
+  this.zorder = 3;
+  this.font = font;
+  this.text = text;
+}
+define(TextParticle, Sprite, 'Sprite', {
+  update: function () {
+    this.bounds.y -= 1;
+    this._Sprite_update();
+  },
+  
+  render: function (ctx, bx, by) {
+    this.font.renderString(ctx, this.text,
+			   bx+this.bounds.x, by+this.bounds.y);
   },
   
 });
@@ -100,6 +123,13 @@ function Kitty(bounds)
 }
 
 define(Kitty, Employee, 'Employee', {
+  update: function () {
+    this._Employee_update();
+    if (rnd(10) == 0) {
+      this.move(rnd(3)-1, 0);
+    }
+  },
+  
   quote: function () {
     this.qindex++;
     switch (this.qindex % 3) {
@@ -138,19 +168,9 @@ define(Machine, Sprite, 'Sprite', {
   },
 });
 
-// Spawner
-function Spawner(bounds)
-{
-  this._Sprite(bounds);
-  this.visible = false;
-}
-
-define(Spawner, Sprite, 'Sprite', {
-});
-
 
 // Movable
-function isObstacle(c) {
+function isBlock(c) {
   return (c < 0 || c == 2);
 }
 function Movable(bounds, hitbox, tileno)
@@ -160,6 +180,7 @@ function Movable(bounds, hitbox, tileno)
   this.gravity = 2;
   this.maxspeed = 8;
   this.velocity = new Vec2(0, 0);
+  this.isObstacle = isBlock;
   this._landed = false;
 }
 
@@ -171,18 +192,19 @@ define(Movable, Actor, 'Actor', {
     this._landed = (0 < this.velocity.y && v.y === 0);
     this.velocity = v;
     this.move(this.velocity.x, this.velocity.y);
+    this._Actor_update();
   },
 
   getMove: function (v) {
     var rect = this.hitbox;
     var tilemap = this.scene.tilemap;
-    var d0 = tilemap.contactTile(rect, isObstacle, v);
+    var d0 = tilemap.contactTile(rect, this.isObstacle, v);
     rect = rect.move(d0.x, d0.y);
     v = v.sub(d0);
-    var d1 = tilemap.contactTile(rect, isObstacle, new Vec2(v.x, 0));
+    var d1 = tilemap.contactTile(rect, this.isObstacle, new Vec2(v.x, 0));
     rect = rect.move(d1.x, d1.y);
     v = v.sub(d1);
-    var d2 = tilemap.contactTile(rect, isObstacle, new Vec2(0, v.y));
+    var d2 = tilemap.contactTile(rect, this.isObstacle, new Vec2(0, v.y));
     return new Vec2(d0.x+d1.x+d2.x,
 		    d0.y+d1.y+d2.y);
   },
@@ -190,28 +212,239 @@ define(Movable, Actor, 'Actor', {
 });
 
 // Fire
-function Fire(bounds)
+function isExtinguisher(c) {
+  return (c < 0 || c == 9);
+}
+function Fire(bounds, moving)
 {
   this._Movable(bounds, bounds.inflate(-2,0), 10);
+  this.gravity = 1;
+  this.maxspeed = 1;
+  this.moving = (moving !== undefined)? moving : false;
 }
 
 define(Fire, Movable, 'Movable', {
+  update: function () {
+    this._Movable_update();
+    if (this.moving) {
+      if (rnd(10) == 0) {
+	var vx = this.velocity.x + (rnd(3)-1);
+	this.velocity.x = clamp(-2, vx, +2);
+      }
+    }
+    var tilemap = this.scene.tilemap;
+    if (tilemap.findTile(this.hitbox.movev(this.velocity),
+			 isExtinguisher) !== null) {
+      this.die();
+    }
+  },
+  
 });
 
+// Lightning
+function Lightning(bounds)
+{
+  this._Actor(bounds, bounds.inflate(-2,0), 11);
+  this.velocity = new Vec2(0, 0);
+  this.turnNext = 0;
+}
+
+define(Lightning, Actor, 'Actor', {
+  update: function () {
+    this._Actor_update();
+    if (this.turnNext < this.scene.ticks) {
+      this.turnNext = this.scene.ticks+rnd(10,50);
+      this.velocity.x = rnd(3)-1;
+      this.velocity.y = rnd(3)-1;
+    }
+    this.move(this.velocity.x, this.velocity.y);
+    if (!this.scene.world.overlap(this.bounds.overlap)) {
+      this.die();
+    }
+  },
+  
+});
+
+// Croc
+function isNotSewer(c) {
+  return (c == 2);
+}
+function Croc(bounds)
+{
+  this._Movable(bounds, bounds, 9);
+  this.isObstacle = isNotSewer;
+  this.gravity = 1;
+  this.maxspeed = 1;
+  this.velocity.x = 1;
+}
+
+define(Croc, Movable, 'Movable', {
+  update: function () {
+    var vx = this.velocity.x;
+    this._Movable_update();
+    if (vx != this.velocity.x) {
+      this.velocity.x = -vx;
+    }
+  },
+  
+});
+
+// Money
+function Money(bounds)
+{
+  this._Movable(bounds, bounds, 12);
+  this.isObstacle = isNotSewer;
+  this.gravity = 1;
+  this.maxspeed = 1;
+  this.velocity.x = 1;
+  this.amount = rnd(1,10);
+}
+
+define(Money, Movable, 'Movable', {
+  update: function () {
+    var vx = this.velocity.x;
+    this._Movable_update();
+    if (vx != this.velocity.x) {
+      this.velocity.x = -vx;
+    }
+  },
+  
+});
+
+// Food
+function Food(bounds)
+{
+  this._Movable(bounds, bounds, 13);
+  this.isObstacle = isNotSewer;
+  this.gravity = 1;
+}
+
+define(Food, Movable, 'Movable', {  
+});
+
+// PipeSpawner
+function PipeSpawner(bounds)
+{
+  this._Sprite(bounds);
+  this.visible = false;
+  this.spawnNext = 0;
+}
+
+define(PipeSpawner, Sprite, 'Sprite', {
+  update: function () {
+    this._Sprite_update();
+    if (this.spawnNext < this.scene.ticks) {
+      var fr = this.scene.app.framerate;
+      this.spawnNext = this.scene.ticks+rnd(fr*2,fr*10);
+      switch (rnd(3)) {
+      case 0:
+	this.scene.addObject(new Fire(this.bounds, true));
+	break;
+      case 1:
+	this.scene.addObject(new Lightning(this.bounds));
+	break;
+      }
+    }
+  },
+  
+});
+
+// WaterSpawner
+function WaterSpawner(bounds)
+{
+  this._Sprite(bounds);
+  this.visible = false;
+  this.spawnNext = 0;
+}
+
+define(WaterSpawner, Sprite, 'Sprite', {
+  update: function () {
+    this._Sprite_update();
+    if (this.spawnNext < this.scene.ticks) {
+      var fr = this.scene.app.framerate;
+      this.spawnNext = this.scene.ticks+rnd(fr*1,fr*3);
+      switch (rnd(5)) {
+      case 0:
+      case 1:
+      case 2:
+      case 3:
+	this.scene.addObject(new Croc(this.bounds));
+	break;
+      case 4:
+	this.scene.addObject(new Money(this.bounds));
+	break;
+      }
+    }
+  },
+  
+});
+
+// FoodSpawner
+function FoodSpawner(bounds)
+{
+  this._Sprite(bounds);
+  this.visible = false;
+  this.spawnNext = 0;
+}
+
+define(FoodSpawner, Sprite, 'Sprite', {
+  update: function () {
+    this._Sprite_update();
+    if (this.spawnNext < this.scene.ticks) {
+      var fr = this.scene.app.framerate;
+      this.spawnNext = this.scene.ticks+rnd(fr*10,fr*30);
+      var food = new Food(this.bounds);
+      food.duration = fr*5;
+      this.scene.addObject(food);
+    }
+  },
+  
+});
+
+
 // Player
-function Player(bounds)
+function Player(bounds, health)
 {
   this._Movable(bounds, bounds.inflate(-3,0), 1);
-  this.health = 5;
   this.speed = 4;
   this.jumpacc = -6;
   this.maxacctime = 8;
   this._jumpt = -1;
+
+  this.health = health;
+  this.invuln = 0;
 }
 
 define(Player, Movable, 'Movable', {
   usermove: function (v) {
     this.velocity.x = v.x*this.speed;
+  },
+
+  collide: function (obj) {
+    if (obj instanceof Fire ||
+	obj instanceof Lightning ||
+	obj instanceof Croc) {
+      this.hurt();
+    } else if (obj instanceof Money) {
+      this.scene.getMoney(obj.amount);
+      playSound(this.scene.app.audios.pick);
+      obj.die();
+    } else if (obj instanceof Food) {
+      this.health = Math.min(5, this.health++);
+      playSound(this.scene.app.audios.pick);
+      obj.die();
+    }
+  },
+  
+  hurt: function () {
+    if (this.invuln === 0) {
+      playSound(this.scene.app.audios.hurt);
+      this.invuln = this.scene.app.framerate;;
+      this.health--;
+      if (this.health == 0) {
+	this.die();
+      }
+    }
   },
   
   jump: function (jumping) {
@@ -225,11 +458,21 @@ define(Player, Movable, 'Movable', {
       this._jumpt = -1;
     }
   },
+  
+  render: function (ctx, bx, by) {
+    if (0 < this.invuln) {
+      if (blink(this.scene.ticks, 8)) return;
+    }
+    this._Movable_render(ctx, bx, by);
+  },
 
   update: function () {
     if (0 <= this._jumpt && this._jumpt < this.maxacctime) {
       this._jumpt++;
       this.velocity.y -= this.gravity;
+    }
+    if (0 < this.invuln) {
+      this.invuln--;
     }
     this._Movable_update();
   },
@@ -245,6 +488,7 @@ function Game(app)
   this.tileSize = 16;
   this.statusSize = 80;
   this.chatSize = 64;
+  this.music = this.app.audios.music;
 }
 
 define(Game, GameScene, 'GameScene', {
@@ -255,7 +499,7 @@ define(Game, GameScene, 'GameScene', {
     var app = this.app;
     var map = copyArray([
       [0,0,0,0,0, 0,0,0,0,0, 0,0,0,0,0],
-      [0,1,0,0,0, 1,0,0,20,1, 0,0,0,1,0],
+      [0,1,0,0,0, 1,0,0,0,1, 0,0,0,1,0],
       [0,0,5,0,0, 0,0,2,2,0, 0,0,7,13,0],
       [0,0,3,0,0, 0,0,0,0,0, 0,2,2,2,2],
       
@@ -269,7 +513,7 @@ define(Game, GameScene, 'GameScene', {
       [0,0,3,0,0, 0,0,0,0,0, 0,0,8,8,0],
       [0,1,3,0,0, 1,0,0,0,1, 2,2,2,2,2],
       [0,0,3,0,0, 0,0,0,0,0, 0,0,0,8,8],
-      [9,9,9,9,9, 9,2,0,10,0, 0,14,8,8,8],
+      [9,9,9,9,9, 9,2,0,10,0, 0,14,8,18,8],
       [2,2,2,2,2, 2,2,2,2,2, 2,2,2,2,2],
     ]);
     this.tilemap = new TileMap(this.tileSize, map);
@@ -290,15 +534,15 @@ define(Game, GameScene, 'GameScene', {
       switch (c) {
       case 5:
       case 6:
-	scene.addObject(new Spawner(tilemap.map2coord(new Vec2(x,y))));
+	scene.addObject(new PipeSpawner(tilemap.map2coord(new Vec2(x,y))));
 	break;
       case 9:
 	if (x == 0) {
-	  scene.addObject(new Spawner(tilemap.map2coord(new Vec2(x,y))));
+	  scene.addObject(new WaterSpawner(tilemap.map2coord(new Vec2(x,y))));
 	}
 	break;
       case 10:
-	scene.player = new Player(tilemap.map2coord(new Vec2(x,y)));
+	scene.player = new Player(tilemap.map2coord(new Vec2(x,y)), 5);
 	scene.addObject(scene.player);
 	tilemap.set(x, y, 0);
 	break;
@@ -321,6 +565,10 @@ define(Game, GameScene, 'GameScene', {
       case 15:
 	scene.addObject(new Machine(tilemap.map2coord(new Vec2(x,y))));
 	tilemap.set(x, y, 0);
+	break;
+      case 18:
+	scene.addObject(new FoodSpawner(tilemap.map2coord(new Vec2(x,y))));
+	tilemap.set(x, y, 8);
 	break;
       case 20:
 	scene.addObject(new Fire(tilemap.map2coord(new Vec2(x,y))));
@@ -361,6 +609,7 @@ define(Game, GameScene, 'GameScene', {
     this.height0 = this.chatBox.frame.height+32;
     this.height1 = this.window.height-this.chatBox.frame.height-32;
     this.chatBox.bounds = new Rectangle(0, this.height1);
+    this.player.died.subscribe(function (obj) { scene.playerDied(); });
 
     this.money = 1000;
     this.loan = 0;
@@ -379,6 +628,7 @@ define(Game, GameScene, 'GameScene', {
     this.updateDemand();
     this.updateCost();
     this.updateSupply();
+    this.updateMoney();
     
   },
   
@@ -438,6 +688,7 @@ define(Game, GameScene, 'GameScene', {
     ctx.fillRect(bx+window.width, by,
 		 this.frame.width-window.width, this.frame.height);
 
+    var scene = this;
     this.statusText.render(ctx, bx, by);
     this.barDemand.render(ctx, bx, by);
     this.barSupply.render(ctx, bx, by);
@@ -491,7 +742,98 @@ define(Game, GameScene, 'GameScene', {
     this.chatBox.update();
   },
 
+  updateCost: function () {
+    var cost = 100;
+    for (var i = 0; i < this.workers.length; i++) {
+      var slot = this.workers[i];
+      if (slot.worker !== null) {
+	cost += slot.worker.wage;
+      }
+    }
+    cost += Math.floor(this.loan*0.1);
+    this.cost = cost;
+    this.textCost.text = rformat('$'+this.cost+'/M', 8);
+  },
+
+  updateSupply: function () {
+    var supply = 0;
+    for (var i = 0; i < this.workers.length; i++) {
+      var slot = this.workers[i];
+      if (slot.worker !== null) {
+	supply += slot.worker.rank;
+      }
+    }
+    this.supply = Math.min(1.0, 0.5*supply/this.quality);
+    this.textQuality.text = rformat('$'+this.quality, 8);
+  },
+  
+  updateRevenue: function () {
+    var revenue = Math.min(this.supply, this.demand)*this.quality;
+    this.revenue = Math.floor(400*revenue);
+    this.textRevenue.text = rformat('$'+this.revenue+'/M', 8);
+  },
+
+  updateMoney: function () {
+    this.textMoney.text = rformat('$'+this.money, 8);
+    this.textLoan.text = rformat('$'+this.loan, 8);
+    if (this.money < 0) {
+      this.wentBankrupt();
+    }
+  },
+  
+  updateTime: function () {
+    if (this.dayNext < this.ticks) {
+      this.dayNext = this.ticks+2*this.app.framerate;
+      this.days++;
+      var month = Math.floor(this.days/30) % 12;
+      var day = this.days % 30;
+      this.textDate.text = MONTHS[month]+'. '+(day+1);
+      var money = Math.floor(this.revenue/30);
+      if (day == 0) {
+	money -= this.cost;
+      }
+      this.getMoney(money);
+    }
+  },
+
+  updateDemand: function () {
+    if (this.demandNext < this.ticks) {
+      this.demandNext = this.ticks+frnd(10,50)*this.app.framerate;
+      this.demandGoal = Math.random(); // harsh reality.
+    }
+    var v = Math.random()*0.05;
+    this.demand = this.demand*(1.0-v)+this.demandGoal*v;
+    this.updateRevenue();
+  },
+
+  getMoney: function (amount) {
+    if (amount != 0) {
+      var text = '$'+amount;
+      var obj = new TextParticle(
+	this.player.bounds.anchor(0,1),
+	this.app.font, text);
+      obj.duration = this.app.framerate/2;
+      this.addObject(obj);
+      this.money += amount;
+      this.updateMoney();
+    }
+  },
+
+  playerDied: function () {
+    log("playerDied");
+    this.chatBox.visible = true;
+    this.chatBox.clear();
+    this.chatBox.addDisplay('You died.\nBut Business goes on.\nYou can keep watching\nor restart the game.', 1);
+  },
+  wentBankrupt: function () {
+    log("wentBankrupt");
+    this.chatBox.visible = true;
+    this.chatBox.clear();
+    this.chatBox.addDisplay('Your company went bankrupt.\nYou can keep watching\nor restart the game.', 1);
+  },
+
   talkTo: function (actor) {
+    log("talkTo:", actor);
     var scene = this;
     var app = this.app;
     if (actor instanceof Assistant) {
@@ -555,67 +897,6 @@ define(Game, GameScene, 'GameScene', {
     }
   },
 
-  updateCost: function () {
-    var cost = 100;
-    for (var i = 0; i < this.workers.length; i++) {
-      var slot = this.workers[i];
-      if (slot.worker !== null) {
-	cost += slot.worker.wage;
-      }
-    }
-    cost += Math.floor(this.loan*0.1);
-    this.cost = cost;
-    this.textCost.text = rformat('$'+this.cost+'/M', 8);
-  },
-
-  updateSupply: function () {
-    var supply = 0;
-    for (var i = 0; i < this.workers.length; i++) {
-      var slot = this.workers[i];
-      if (slot.worker !== null) {
-	supply += slot.worker.rank;
-      }
-    }
-    this.supply = Math.min(1.0, 0.5*supply/this.quality);
-    this.textQuality.text = rformat('$'+this.quality, 8);
-  },
-  
-  updateRevenue: function () {
-    var revenue = Math.min(this.supply, this.demand)*this.quality;
-    this.revenue = Math.floor(400*revenue);
-    this.textRevenue.text = rformat('$'+this.revenue+'/M', 8);
-  },
-
-  updateMoney: function () {
-    this.textMoney.text = rformat('$'+this.money, 8);
-    this.textLoan.text = rformat('$'+this.loan, 8);
-  },
-  
-  updateTime: function () {
-    if (this.dayNext < this.ticks) {
-      this.dayNext = this.ticks+3*this.app.framerate;
-      this.days++;
-      var month = Math.floor(this.days/30) % 12;
-      var day = this.days % 30;
-      this.textDate.text = MONTHS[month]+'. '+(day+1);
-      this.money += Math.floor(this.revenue/30);
-      if (day == 0) {
-	this.money -= this.cost;
-      }
-      this.updateMoney();
-    }
-  },
-
-  updateDemand: function () {
-    if (this.demandNext < this.ticks) {
-      this.demandNext = this.ticks+frnd(10,50)*this.app.framerate;
-      this.demandGoal = Math.random(); // harsh reality.
-    }
-    var v = Math.random()*0.05;
-    this.demand = this.demand*(1.0-v)+this.demandGoal*v;
-    this.updateRevenue();
-  },
-
   hireWorker: function () {
     log("hireWorker");
     for (var i = 0; i < this.workers.length; i++) {
@@ -640,7 +921,7 @@ define(Game, GameScene, 'GameScene', {
     log("borrowMoney");
     var v = 500;
     this.loan += v;
-    this.money += Math.floor(v*0.9);
+    this.getMoney(Math.floor(v*0.9));
     var interest = Math.floor(this.loan*0.1);
     this.chatBox.visible = true;
     this.chatBox.clear();
@@ -658,7 +939,7 @@ define(Game, GameScene, 'GameScene', {
       this.chatBox.addDisplay('"We don\'t have enough cash."', 1);
       return;
     }
-    this.money -= v;
+    this.getMoney(-v);
     this.loan -= v;
     var interest = Math.floor(this.loan*0.1);
     this.chatBox.visible = true;
@@ -684,7 +965,7 @@ define(Game, GameScene, 'GameScene', {
       return;
     }
     worker.upgrade();
-    this.money -= v;
+    this.getMoney(-v);
     this.chatBox.visible = true;
     this.chatBox.clear();
     this.chatBox.addDisplay('"I become better!\n'+
@@ -714,7 +995,7 @@ define(Game, GameScene, 'GameScene', {
       this.chatBox.addDisplay('"We don\'t have enough cash."', 1);
       return;
     }
-    this.money -= v;
+    this.getMoney(-v);
     this.quality++;
     this.chatBox.visible = true;
     this.chatBox.clear();

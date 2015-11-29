@@ -158,6 +158,9 @@ define(Rectangle, Object, '', {
   move: function (dx, dy) {
     return new Rectangle(this.x+dx, this.y+dy, this.width, this.height);  
   },
+  movev: function (v) {
+    return new Rectangle(this.x+v.x, this.y+v.y, this.width, this.height);  
+  },
   moveTo: function (x, y) {
     return new Rectangle(x-this.width/2, y-this.height/2, this.width, this.height);  
   },
