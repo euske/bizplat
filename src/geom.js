@@ -45,26 +45,6 @@ define(Vec2, Object, '', {
   move: function (dx, dy) {
     return new Vec2(this.x+dx, this.y+dy);
   },
-  anchor: function (dx, dy, vx, vy) {
-    var x, y;
-    vx = (vx !== undefined)? vx : 0;
-    vy = (vy !== undefined)? vy : 0;
-    if (0 < vx) {
-      x = this.x;
-    } else if (vx < 0) {
-      x = this.x-dx;
-    } else {
-      x = this.x-dx/2;
-    }
-    if (0 < vy) {
-      y = this.y;
-    } else if (vy < 0) {
-      y = this.y-dy;
-    } else {
-      y = this.y-dy/2;
-    }
-    return new Vec2(x, y);
-  },
 });
 
 
@@ -107,9 +87,8 @@ define(Vec3, Object, '', {
 
 
 // Rectangle
-function MakeRect(p, w, h, vx, vy)
+function MakeRect(p, w, h)
 {
-  p = p.anchor(w, h, vx, vy);
   return new Rectangle(p.x, p.y, w, h);
 }
 function Rectangle(x, y, width, height)
@@ -155,6 +134,24 @@ define(Rectangle, Object, '', {
   center: function () {
     return new Vec2(this.x+this.width/2, this.y+this.height/2);
   },
+  anchor: function (vx, vy) {
+    var x, y;
+    if (0 < vx) {
+      x = this.x;
+    } else if (vx < 0) {
+      x = this.x+this.width;
+    } else {
+      x = this.x+this.width/2;
+    }
+    if (0 < vy) {
+      y = this.y;
+    } else if (vy < 0) {
+      y = this.y+this.height;
+    } else {
+      y = this.y+this.height/2;
+    }
+    return new Vec2(x, y);
+  },
   copy: function () {
     return new Rectangle(this.x, this.y, this.width, this.height);
   },
@@ -165,11 +162,7 @@ define(Rectangle, Object, '', {
     return new Rectangle(x-this.width/2, y-this.height/2, this.width, this.height);  
   },
   inflate: function (dw, dh) {
-    var cx = this.x+this.width/2;
-    var cy = this.y+this.height/2;
-    dw += this.width;
-    dh += this.height;
-    return new Rectangle(cx-dw/2, cy-dh/2, dw, dh);
+    return new Rectangle(this.x-dw, this.y-dh, this.width+dw*2, this.height+dh*2);
   },
   contains: function (p) {
     return (this.x <= p.x && this.y <= p.y &&
@@ -308,14 +301,8 @@ define(Box, Object, '', {
 		   this.size);
   },
   inflate: function (dx, dy, dz) {
-    var cx = this.origin.x+this.size.x/2;
-    var cy = this.origin.y+this.size.y/2;
-    var cz = this.origin.z+this.size.z/2;
-    dx += this.size.x;
-    dy += this.size.y;
-    dz += this.size.z;
-    return new Box(new Vec3(cx-dx/2, cy-dy/2, cz-dz/2),
-		   new Vec3(dx, dy, dz));
+    return new Box(this.origin.move(-dx, -dy, -dz),
+		   this.size.move(dx*2, dy*2, dz*2));
   },
   contains: function (p) {
     return (this.origin.x <= p.x && this.origin.y <= p.y && this.origin.z <= p.z &&

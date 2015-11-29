@@ -51,11 +51,11 @@ function MakeSegment(pt, text, font)
 
 //  TextBox
 //
-function TextBox(frame)
+function TextBox(frame, font)
 {
   this._Sprite(null);
   this.frame = frame;
-  this.font = null;
+  this.font = font;
   this.linespace = 0;
   this.padding = 0;
   this.background = null;
@@ -160,17 +160,17 @@ define(TextBox, Sprite, 'Sprite', {
     return new Vec2(w, h-this.linespace);
   },
 
-  putText: function (lines, font, halign, valign) {
-    font = (font !== undefined)? font : this.font;
+  putText: function (lines, halign, valign, font) {
     halign = (halign !== undefined)? halign : 'left';
     valign = (valign !== undefined)? valign : 'top';
+    font = (font !== undefined)? font : this.font;
     var y = this.frame.y;
     switch (valign) {
     case 'center':
-      y += (this.frame.height-this.getSize(font, lines).y)/2;
+      y += (this.frame.height-this.getSize(lines, font).y)/2;
       break;
     case 'bottom':
-      y += this.frame.height-this.getSize(font, lines).y;
+      y += this.frame.height-this.getSize(lines, font).y;
       break;
     }
     for (var i = 0; i < lines.length; i++) {
@@ -229,12 +229,11 @@ define(PauseTask, TextTask, 'TextTask', {
 
 //  DisplayTask
 //
-function DisplayTask(textbox, text, font)
+function DisplayTask(textbox, text)
 {
-  font = (font !== undefined)? font : textbox.font;
   this._TextTask(textbox);
   this.text = text;
-  this.font = font;
+  this.font = textbox.font;
   this.interval = 0;
   this.sound = null;
   this._index = 0;
@@ -265,12 +264,11 @@ define(DisplayTask, TextTask, 'TextTask', {
 
 //  MenuTask
 //
-function MenuTask(textbox, font)
+function MenuTask(textbox)
 {
-  font = (font !== undefined)? font : textbox.font;
   this._TextTask(textbox);
-  this.font = font;
-  this.cursor = MakeSegment(new Vec2(), '>', font);
+  this.font = textbox.font;
+  this.cursor = MakeSegment(new Vec2(), '>', this.font);
   this.vertical = false;
   this.items = [];
   this.current = null;
@@ -283,6 +281,7 @@ define(MenuTask, TextTask, 'TextTask', {
     value = (value !== undefined)? value : text;
     var item = { pos:pos, text:text, value:value };
     this.items.push(item);
+    return item;
   },
 
   start: function (scene) {
@@ -294,6 +293,9 @@ define(MenuTask, TextTask, 'TextTask', {
     this.updateCursor();
   },
 
+  ff: function () {
+  },
+  
   keydown: function (key) {
     var d = 0;
     var keysym = getKeySym(key);
@@ -313,10 +315,12 @@ define(MenuTask, TextTask, 'TextTask', {
     case 'action':
       if (this.current !== null) {
 	this.selected.signal(this.current.value);
+	this.die();
       };
       return;
     case 'cancel':
       this.selected.signal(null);
+      this.die();
       return;
     }
     
@@ -342,9 +346,9 @@ define(MenuTask, TextTask, 'TextTask', {
 
 //  TextBoxTT
 //
-function TextBoxTT(frame)
+function TextBoxTT(frame, font)
 {
-  this._TextBox(frame);
+  this._TextBox(frame, font);
   this.interval = 0;
   this.sound = null;
   this.queue = [];
@@ -369,6 +373,11 @@ define(TextBoxTT, TextBox, 'TextBox', {
     }
   },
 
+  clear: function () {
+    this._TextBox_clear();
+    this.cursor = null;
+  },
+
   update: function () {
     this._TextBox_update();
     while (true) {
@@ -384,9 +393,16 @@ define(TextBoxTT, TextBox, 'TextBox', {
   },
 
   keydown: function (key) {
-    var task = this.getCurrentTask();
-    if (task !== null) {
+    while (true) {
+      var task = this.getCurrentTask();
+      if (task === null) break;
+      if (task.scene === null) {
+	task.start(this.scene);
+      }
       task.keydown(key);
+      if (task.scene !== null) break;
+      this.queue.shift();
+      break;
     }
   },
 
@@ -413,16 +429,18 @@ define(TextBoxTT, TextBox, 'TextBox', {
     return task;
   },
 
-  addDisplay: function (text, font, interval, sound) {
-    var task = new DisplayTask(this, text, font);
+  addDisplay: function (text, interval, sound, font) {
+    var task = new DisplayTask(this, text);
     task.interval = (interval !== undefined)? interval : this.interval;
     task.sound = (sound !== undefined)? sound : this.sound;
+    task.font = (font !== undefined)? font : this.font;
     this.queue.push(task);
     return task;
   },
 
   addMenu: function (font) {
-    var task = new MenuTask(this, font);
+    var task = new MenuTask(this);
+    task.font = (font !== undefined)? font : this.font;
     this.queue.push(task);
     return task;
   },

@@ -21,9 +21,9 @@ define(BarBox, Sprite, 'Sprite', {
 });
 
 // ChatBox
-function ChatBox(frame)
+function ChatBox(frame, font)
 {
-  this._TextBoxTT(frame);
+  this._TextBoxTT(frame, font);
 }
 
 define(ChatBox, TextBoxTT, 'TextBoxTT', {
@@ -33,7 +33,7 @@ define(ChatBox, TextBoxTT, 'TextBoxTT', {
       bx += this.bounds.x;
       by += this.bounds.y;
     }
-    var rect = this.frame.inflate(10, 10);
+    var rect = this.frame.inflate(5, 5);
     ctx.lineWidth = 2;
     ctx.strokeStyle = 'white';
     ctx.strokeRect(bx+rect.x, by+rect.y, rect.width, rect.height);
@@ -121,7 +121,7 @@ define(Movable, Actor, 'Actor', {
 // Fire
 function Fire(bounds)
 {
-  this._Movable(bounds, bounds.inflate(-4,0), 10);
+  this._Movable(bounds, bounds.inflate(-2,0), 10);
 }
 
 define(Fire, Movable, 'Movable', {
@@ -130,7 +130,7 @@ define(Fire, Movable, 'Movable', {
 // Player
 function Player(bounds)
 {
-  this._Movable(bounds, bounds.inflate(-6,0), 1);
+  this._Movable(bounds, bounds.inflate(-3,0), 1);
   this.health = 5;
   this.zorder = 1;
   this.speed = 4;
@@ -213,6 +213,7 @@ define(Game, GameScene, 'GameScene', {
       Math.min(this.world.height, this.frame.height));
 
     this.player = null;
+    this.slots = [];
 
     var tilemap = this.tilemap;
     tilemap.apply(function (x, y, c) {
@@ -223,7 +224,7 @@ define(Game, GameScene, 'GameScene', {
 	tilemap.set(x, y, 0);
 	break;
       case 11:
-	scene.addObject(new Worker(tilemap.map2coord(new Vec2(x,y))));
+	scene.slots.push({worker:null, bounds:tilemap.map2coord(new Vec2(x,y))});
 	tilemap.set(x, y, 0);
 	break;
       case 12:
@@ -268,7 +269,7 @@ define(Game, GameScene, 'GameScene', {
 
     this.chatBox = new ChatBox(new Rectangle(16, 16, this.window.width-32, this.chatSize));
     this.chatBox.font = app.font;
-    this.chatBox.padding = 16;
+    this.chatBox.padding = 8;
     this.chatBox.visible = false;
     this.chatBox.background = 'black';
     this.chatBox.start(this);
@@ -279,7 +280,7 @@ define(Game, GameScene, 'GameScene', {
     this.money = 1000;
     this.loan = 0;
     this.revenue = 0;
-    this.cost = 0;
+    this.cost = 100;
     this.demand = 0.5;
     this.supply = 0.5;
     this.quality = 0;
@@ -358,9 +359,14 @@ define(Game, GameScene, 'GameScene', {
   keydown: function (key) {
     this._GameScene_keydown(key);
     if (this.chatBox.visible) {
-      this.chatBox.keydown(key);
+      if (this.chatBox.getCurrentTask() !== null) {
+	this.chatBox.keydown(key);
+      } else {
+	this.chatBox.visible = false;
+      }
     } else {
-      if (getKeySym(key) == 'action') {
+      var sym = getKeySym(key);
+      if (sym == 'up' || sym == 'down') {
 	var actors = this.findObjects(
 	  this.player.bounds.inflate(16,16),
 	  (function (obj) { return obj instanceof Employee; }));
@@ -372,30 +378,13 @@ define(Game, GameScene, 'GameScene', {
     }
   },
 
-  talkTo: function (actor) {
-    if (actor instanceof Assistant) {
-      var scene = this;
-      this.chatBox.visible = true;
-      this.chatBox.addDisplay("GOOD DAY, SIR.", this.app.font, 1);
-      var menu = this.chatBox.addMenu();
-      menu.sound = this.app.audios.beep;
-      menu.addItem(new Vec2(80, 30), "HIRE");
-      menu.addItem(new Vec2(80, 40), "LOAN");
-      menu.addItem(new Vec2(80, 50), "REPAY");
-      menu.selected.subscribe(function (obj, value) {
-	log("selected:"+value);
-	scene.textbox.visible = false;
-      });
-    }
-  },
-
   update: function () {
     this._GameScene_update();
     if (!this.chatBox.visible) {
       this.player.usermove(this.app.key_dir);
-      this.player.jump(this.app.key_dir.y < 0);
+      this.player.jump(this.app.key_action);
     }
-    this.setCenter(this.player.bounds.inflate(100,50));
+    this.setCenter(this.player.bounds.inflate(50,50));
     this.textDate.text = '2015/01';
     this.textHealth.text = '';
     for (var i = 0; i < this.player.health; i++) {
@@ -411,4 +400,85 @@ define(Game, GameScene, 'GameScene', {
     this.chatBox.update();
   },
 
+  talkTo: function (actor) {
+    var scene = this;
+    var app = this.app;
+    if (actor instanceof Assistant) {
+      this.chatBox.visible = true;
+      this.chatBox.clear();
+      this.chatBox.addDisplay('"Good day, Sir."', 1);
+      var menu = this.chatBox.addMenu();
+      menu.vertical = true;
+      menu.sound = app.audios.beep;
+      menu.current = menu.addItem(new Vec2(40, 30), 'Nothing', null);
+      menu.addItem(new Vec2(40, 40), 'Hire Worker',
+		   (function () { scene.hireWorker(); }));
+      menu.addItem(new Vec2(40, 50), 'Loan Money',
+		   (function () { scene.loanMoney(); }));
+      menu.addItem(new Vec2(40, 60), 'Repay Money',
+		   (function () { scene.repayMoney(); }));
+      menu.selected.subscribe(function (obj, value) {
+	if (value !== null) { value(); }
+	scene.chatBox.visible = false;
+      });
+      
+    } else if (actor instanceof Worker) {
+      this.chatBox.visible = true;
+      this.chatBox.clear();
+      this.chatBox.addDisplay('"'+"'"+'ello, Boss."', 1);
+      var menu = this.chatBox.addMenu();
+      menu.vertical = true;
+      menu.sound = app.audios.beep;
+      menu.current = menu.addItem(new Vec2(40, 30), 'Nothing', null);
+      menu.addItem(new Vec2(40, 40), 'Train',
+		   (function () { scene.trainWorker(actor); }));
+      menu.addItem(new Vec2(40, 50), "You're Fired",
+		   (function () { scene.fireWorker(actor); })),
+      menu.selected.subscribe(function (obj, value) {
+	if (value !== null) { value(); }
+	scene.chatBox.visible = false;
+      });
+      
+    } else if (actor instanceof Researcher) {
+      this.chatBox.visible = true;
+      this.chatBox.clear();
+      this.chatBox.addDisplay('"What do you want?"', 1);
+      var menu = this.chatBox.addMenu();
+      menu.vertical = true;
+      menu.sound = app.audios.beep;
+      menu.current = menu.addItem(new Vec2(40, 30), 'Nothing', null);
+      menu.addItem(new Vec2(40, 40), 'Upgrade Product',
+		   (function () { scene.upgradeProduct(); }));
+      menu.addItem(new Vec2(40, 50), 'Downgrade Product',
+		   (function () { scene.downgradeProduct(); }));
+      menu.selected.subscribe(function (obj, value) {
+	if (value !== null) { value(); }
+	scene.chatBox.visible = false;
+      });
+      
+    }
+  },
+
+  hireWorker: function () {
+    log("hireWorker");
+  },
+  loanMoney: function () {
+    log("loanMoney");
+  },
+  repayMoney: function () {
+    log("repayMoney");
+  },
+  trainWorker: function (worker) {
+    log("hireWorker:", worker);
+  },
+  fireWorker: function (worker) {
+    log("fireWorker:", worker);
+  },
+  upgradeProduct: function () {
+    log("upgradeProduct");
+  },
+  downgradeProduct: function () {
+    log("downgradeProduct");
+  },
+  
 });
