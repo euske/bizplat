@@ -314,13 +314,13 @@ define(MenuTask, TextTask, 'TextTask', {
       break;
     case 'action':
       if (this.current !== null) {
-	this.selected.signal(this.current.value);
 	this.die();
+	this.selected.signal(this.current.value);
       };
       return;
     case 'cancel':
-      this.selected.signal(null);
       this.die();
+      this.selected.signal(null);
       return;
     }
     
@@ -375,6 +375,7 @@ define(TextBoxTT, TextBox, 'TextBox', {
 
   clear: function () {
     this._TextBox_clear();
+    this.queue = [];
     this.cursor = null;
   },
 
@@ -388,7 +389,7 @@ define(TextBoxTT, TextBox, 'TextBox', {
       }
       task.update();
       if (task.scene !== null) break;
-      this.queue.shift();
+      this.removeTask(task);
     }
   },
 
@@ -401,7 +402,7 @@ define(TextBoxTT, TextBox, 'TextBox', {
       }
       task.keydown(key);
       if (task.scene !== null) break;
-      this.queue.shift();
+      this.removeTask(task);
       break;
     }
   },
@@ -415,7 +416,7 @@ define(TextBoxTT, TextBox, 'TextBox', {
       }
       task.ff();
       if (task.scene !== null) break;
-      this.queue.shift();
+      this.removeTask(task);
     }
   },
 
@@ -423,9 +424,19 @@ define(TextBoxTT, TextBox, 'TextBox', {
     return (0 < this.queue.length)? this.queue[0] : null;
   },
 
+  addTask: function (task) {
+    this.queue.push(task);
+  },
+  removeTask: function (task) {
+    var i = this.queue.indexOf(task);
+    if (0 <= i) {
+      this.queue.splice(i, 1);
+    }
+  },
+
   addPause: function (ticks) {
     var task = new PauseTask(this, ticks);
-    this.queue.push(task);
+    this.addTask(task);
     return task;
   },
 
@@ -434,14 +445,14 @@ define(TextBoxTT, TextBox, 'TextBox', {
     task.interval = (interval !== undefined)? interval : this.interval;
     task.sound = (sound !== undefined)? sound : this.sound;
     task.font = (font !== undefined)? font : this.font;
-    this.queue.push(task);
+    this.addTask(task);
     return task;
   },
 
   addMenu: function (font) {
     var task = new MenuTask(this);
     task.font = (font !== undefined)? font : this.font;
-    this.queue.push(task);
+    this.addTask(task);
     return task;
   },
 

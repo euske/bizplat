@@ -1,5 +1,7 @@
 // game.js
 
+MONTHS = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC']
+
 // BarBox
 function BarBox(bounds)
 {
@@ -24,6 +26,9 @@ define(BarBox, Sprite, 'Sprite', {
 function ChatBox(frame, font)
 {
   this._TextBoxTT(frame, font);
+  this.linespace = 3;
+  this.padding = 8;
+  this.background = 'black';
 }
 
 define(ChatBox, TextBoxTT, 'TextBoxTT', {
@@ -52,18 +57,25 @@ define(Employee, Actor, 'Actor', {
 // Worker
 function Worker(bounds)
 {
-  this.zorder = -1;
   this._Employee(bounds, bounds, 2);
+  this.zorder = -1;
+  this.rank = 0;
+  this.wage = 0;
 }
 
 define(Worker, Employee, 'Employee', {
+  upgrade: function () {
+    this.rank++;
+    this.wage = (this.rank-1)*50+100;
+    this.tileno = (this.rank < 2)? 2 : 3;
+  }
 });
 
 // Assistant
 function Assistant(bounds)
 {
-  this.zorder = 0;
   this._Employee(bounds, bounds, 4);
+  this.zorder = 0;
 }
 
 define(Assistant, Employee, 'Employee', {
@@ -72,12 +84,70 @@ define(Assistant, Employee, 'Employee', {
 // Researcher
 function Researcher(bounds)
 {
-  this.zorder = 0;
   this._Employee(bounds, bounds, 5);
+  this.zorder = 0;
 }
 
 define(Researcher, Employee, 'Employee', {
 });
+
+// Kitty
+function Kitty(bounds)
+{
+  this._Employee(bounds, bounds, 8);
+  this.zorder = 0;
+  this.qindex = 0;
+}
+
+define(Kitty, Employee, 'Employee', {
+  quote: function () {
+    this.qindex++;
+    switch (this.qindex % 3) {
+    case 1:
+    case 2:
+      return '"Nyaa."';
+    default:
+      return '"What? I\'m busy now.\n Don\'t talk to me."';
+    }
+  }
+});
+
+// Machine
+function Machine(bounds)
+{
+  this._Sprite(bounds);
+  this.zorder = 1;
+  this.size = 6;
+}
+define(Machine, Sprite, 'Sprite', {
+  render: function (ctx, bx, by) {
+    var x = bx+this.bounds.x;
+    var y = by+this.bounds.y;
+    var w = this.bounds.width;
+    var h = this.bounds.height;
+    var sprites = this.scene.app.sprites;
+    var tw = sprites.height;
+    var th = sprites.height;
+    for (var i = 0; i < this.size; i++) {
+      var tileno = (i == 0)? 7 : 6;
+      ctx.drawImage(sprites,
+		    tileno*tw, th-h, w, h,
+		    x, y, w, h);
+      x += w;
+    }
+  },
+});
+
+// Spawner
+function Spawner(bounds)
+{
+  this._Sprite(bounds);
+  this.visible = false;
+}
+
+define(Spawner, Sprite, 'Sprite', {
+});
+
 
 // Movable
 function isObstacle(c) {
@@ -86,6 +156,7 @@ function isObstacle(c) {
 function Movable(bounds, hitbox, tileno)
 {
   this._Actor(bounds, hitbox, tileno);
+  this.zorder = 2;
   this.gravity = 2;
   this.maxspeed = 8;
   this.velocity = new Vec2(0, 0);
@@ -132,7 +203,6 @@ function Player(bounds)
 {
   this._Movable(bounds, bounds.inflate(-3,0), 1);
   this.health = 5;
-  this.zorder = 1;
   this.speed = 4;
   this.jumpacc = -6;
   this.maxacctime = 8;
@@ -185,7 +255,7 @@ define(Game, GameScene, 'GameScene', {
     var app = this.app;
     var map = copyArray([
       [0,0,0,0,0, 0,0,0,0,0, 0,0,0,0,0],
-      [0,1,0,0,0, 1,0,14,0,1, 0,0,0,1,0],
+      [0,1,0,0,0, 1,0,0,20,1, 0,0,0,1,0],
       [0,0,5,0,0, 0,0,2,2,0, 0,0,7,13,0],
       [0,0,3,0,0, 0,0,0,0,0, 0,2,2,2,2],
       
@@ -193,13 +263,13 @@ define(Game, GameScene, 'GameScene', {
       [0,0,3,0,0, 0,2,2,0,0, 0,0,0,0,0],
       [0,1,3,0,0, 1,0,0,0,1, 0,0,0,1,0],
       [0,0,3,0,0, 0,0,0,2,2, 0,0,0,12,0],
-      [0,11,3,11,0, 11,0,0,0,0, 0,0,2,2,2],
+      [15,11,3,11,0, 11,0,0,0,0, 0,0,2,2,2],
       
       [2,2,2,2,2, 2,2,0,0,0, 0,0,0,0,0],
       [0,0,3,0,0, 0,0,0,0,0, 0,0,8,8,0],
       [0,1,3,0,0, 1,0,0,0,1, 2,2,2,2,2],
       [0,0,3,0,0, 0,0,0,0,0, 0,0,0,8,8],
-      [9,9,9,9,9, 9,2,0,10,0, 0,0,8,8,8],
+      [9,9,9,9,9, 9,2,0,10,0, 0,14,8,8,8],
       [2,2,2,2,2, 2,2,2,2,2, 2,2,2,2,2],
     ]);
     this.tilemap = new TileMap(this.tileSize, map);
@@ -213,18 +283,27 @@ define(Game, GameScene, 'GameScene', {
       Math.min(this.world.height, this.frame.height));
 
     this.player = null;
-    this.slots = [];
+    this.workers = [];
 
     var tilemap = this.tilemap;
     tilemap.apply(function (x, y, c) {
       switch (c) {
+      case 5:
+      case 6:
+	scene.addObject(new Spawner(tilemap.map2coord(new Vec2(x,y))));
+	break;
+      case 9:
+	if (x == 0) {
+	  scene.addObject(new Spawner(tilemap.map2coord(new Vec2(x,y))));
+	}
+	break;
       case 10:
 	scene.player = new Player(tilemap.map2coord(new Vec2(x,y)));
 	scene.addObject(scene.player);
 	tilemap.set(x, y, 0);
 	break;
       case 11:
-	scene.slots.push({worker:null, bounds:tilemap.map2coord(new Vec2(x,y))});
+	scene.workers.push({worker:null, bounds:tilemap.map2coord(new Vec2(x,y))});
 	tilemap.set(x, y, 0);
 	break;
       case 12:
@@ -236,6 +315,14 @@ define(Game, GameScene, 'GameScene', {
 	tilemap.set(x, y, 0);
 	break;
       case 14:
+	scene.addObject(new Kitty(tilemap.map2coord(new Vec2(x,y))));
+	tilemap.set(x, y, 0);
+	break;
+      case 15:
+	scene.addObject(new Machine(tilemap.map2coord(new Vec2(x,y))));
+	tilemap.set(x, y, 0);
+	break;
+      case 20:
 	scene.addObject(new Fire(tilemap.map2coord(new Vec2(x,y))));
 	tilemap.set(x, y, 0);
 	break;
@@ -269,9 +356,7 @@ define(Game, GameScene, 'GameScene', {
 
     this.chatBox = new ChatBox(new Rectangle(16, 16, this.window.width-32, this.chatSize));
     this.chatBox.font = app.font;
-    this.chatBox.padding = 8;
     this.chatBox.visible = false;
-    this.chatBox.background = 'black';
     this.chatBox.start(this);
     this.height0 = this.chatBox.frame.height+32;
     this.height1 = this.window.height-this.chatBox.frame.height-32;
@@ -281,9 +366,19 @@ define(Game, GameScene, 'GameScene', {
     this.loan = 0;
     this.revenue = 0;
     this.cost = 100;
-    this.demand = 0.5;
-    this.supply = 0.5;
-    this.quality = 0;
+    this.demand = 0;
+    this.supply = 0;
+    this.quality = 1;
+
+    this.demandNext = 0;
+    this.demandGoal = 0;
+    this.dayNext = 0;
+    this.days = 0;
+
+    this.updateTime();
+    this.updateDemand();
+    this.updateCost();
+    this.updateSupply();
     
   },
   
@@ -385,16 +480,12 @@ define(Game, GameScene, 'GameScene', {
       this.player.jump(this.app.key_action);
     }
     this.setCenter(this.player.bounds.inflate(50,50));
-    this.textDate.text = '2015/01';
+    this.updateTime();
+    this.updateDemand();
     this.textHealth.text = '';
     for (var i = 0; i < this.player.health; i++) {
       this.textHealth.text += '\x7f';
     }
-    this.textMoney.text = rformat('$'+this.money, 8);
-    this.textLoan.text = rformat('$'+this.loan, 8);
-    this.textRevenue.text = rformat('$'+this.revenue+'/M', 8);
-    this.textCost.text = rformat('$'+this.cost+'/M', 8);
-    this.textQuality.text = rformat('$'+this.quality, 8);
     this.barDemand.value = this.demand;
     this.barSupply.value = this.supply;
     this.chatBox.update();
@@ -411,32 +502,32 @@ define(Game, GameScene, 'GameScene', {
       menu.vertical = true;
       menu.sound = app.audios.beep;
       menu.current = menu.addItem(new Vec2(40, 30), 'Nothing', null);
-      menu.addItem(new Vec2(40, 40), 'Hire Worker',
+      menu.addItem(new Vec2(40, 40), 'Hire Worker ($100/M)',
 		   (function () { scene.hireWorker(); }));
-      menu.addItem(new Vec2(40, 50), 'Loan Money',
-		   (function () { scene.loanMoney(); }));
-      menu.addItem(new Vec2(40, 60), 'Repay Money',
+      menu.addItem(new Vec2(40, 50), 'Borrow $500',
+		   (function () { scene.borrowMoney(); }));
+      menu.addItem(new Vec2(40, 60), 'Repay $500',
 		   (function () { scene.repayMoney(); }));
       menu.selected.subscribe(function (obj, value) {
-	if (value !== null) { value(); }
 	scene.chatBox.visible = false;
+	if (value !== null) { value(); }
       });
       
     } else if (actor instanceof Worker) {
       this.chatBox.visible = true;
       this.chatBox.clear();
-      this.chatBox.addDisplay('"'+"'"+'ello, Boss."', 1);
+      this.chatBox.addDisplay('"\'ello, Boss."', 1);
       var menu = this.chatBox.addMenu();
       menu.vertical = true;
       menu.sound = app.audios.beep;
       menu.current = menu.addItem(new Vec2(40, 30), 'Nothing', null);
-      menu.addItem(new Vec2(40, 40), 'Train',
+      menu.addItem(new Vec2(40, 40), 'Train ($200)',
 		   (function () { scene.trainWorker(actor); }));
       menu.addItem(new Vec2(40, 50), "You're Fired",
 		   (function () { scene.fireWorker(actor); })),
       menu.selected.subscribe(function (obj, value) {
-	if (value !== null) { value(); }
 	scene.chatBox.visible = false;
+	if (value !== null) { value(); }
       });
       
     } else if (actor instanceof Researcher) {
@@ -447,38 +538,204 @@ define(Game, GameScene, 'GameScene', {
       menu.vertical = true;
       menu.sound = app.audios.beep;
       menu.current = menu.addItem(new Vec2(40, 30), 'Nothing', null);
-      menu.addItem(new Vec2(40, 40), 'Upgrade Product',
+      var v = 100*Math.pow(2,this.quality);
+      menu.addItem(new Vec2(40, 40), 'Upgrade Product ($'+v+')',
 		   (function () { scene.upgradeProduct(); }));
       menu.addItem(new Vec2(40, 50), 'Downgrade Product',
 		   (function () { scene.downgradeProduct(); }));
       menu.selected.subscribe(function (obj, value) {
-	if (value !== null) { value(); }
 	scene.chatBox.visible = false;
+	if (value !== null) { value(); }
       });
       
+    } else if (actor instanceof Kitty) {
+      this.chatBox.visible = true;
+      this.chatBox.clear();
+      this.chatBox.addDisplay(actor.quote(), 1);
     }
+  },
+
+  updateCost: function () {
+    var cost = 100;
+    for (var i = 0; i < this.workers.length; i++) {
+      var slot = this.workers[i];
+      if (slot.worker !== null) {
+	cost += slot.worker.wage;
+      }
+    }
+    cost += Math.floor(this.loan*0.1);
+    this.cost = cost;
+    this.textCost.text = rformat('$'+this.cost+'/M', 8);
+  },
+
+  updateSupply: function () {
+    var supply = 0;
+    for (var i = 0; i < this.workers.length; i++) {
+      var slot = this.workers[i];
+      if (slot.worker !== null) {
+	supply += slot.worker.rank;
+      }
+    }
+    this.supply = Math.min(1.0, 0.5*supply/this.quality);
+    this.textQuality.text = rformat('$'+this.quality, 8);
+  },
+  
+  updateRevenue: function () {
+    var revenue = Math.min(this.supply, this.demand)*this.quality;
+    this.revenue = Math.floor(400*revenue);
+    this.textRevenue.text = rformat('$'+this.revenue+'/M', 8);
+  },
+
+  updateMoney: function () {
+    this.textMoney.text = rformat('$'+this.money, 8);
+    this.textLoan.text = rformat('$'+this.loan, 8);
+  },
+  
+  updateTime: function () {
+    if (this.dayNext < this.ticks) {
+      this.dayNext = this.ticks+3*this.app.framerate;
+      this.days++;
+      var month = Math.floor(this.days/30) % 12;
+      var day = this.days % 30;
+      this.textDate.text = MONTHS[month]+'. '+(day+1);
+      this.money += Math.floor(this.revenue/30);
+      if (day == 0) {
+	this.money -= this.cost;
+      }
+      this.updateMoney();
+    }
+  },
+
+  updateDemand: function () {
+    if (this.demandNext < this.ticks) {
+      this.demandNext = this.ticks+frnd(10,50)*this.app.framerate;
+      this.demandGoal = Math.random(); // harsh reality.
+    }
+    var v = Math.random()*0.05;
+    this.demand = this.demand*(1.0-v)+this.demandGoal*v;
+    this.updateRevenue();
   },
 
   hireWorker: function () {
     log("hireWorker");
+    for (var i = 0; i < this.workers.length; i++) {
+      var slot = this.workers[i];
+      if (slot.worker === null) {
+	slot.worker = new Worker(slot.bounds);
+	slot.worker.upgrade();
+	this.addObject(slot.worker);
+	this.chatBox.visible = true;
+	this.chatBox.clear();
+	this.chatBox.addDisplay('"We hired a new worker."', 1);
+	this.updateCost();
+	this.updateSupply();
+	return;
+      }
+    }
+    this.chatBox.visible = true;
+    this.chatBox.clear();
+    this.chatBox.addDisplay('"No more worker can be hired."', 1);
   },
-  loanMoney: function () {
-    log("loanMoney");
+  borrowMoney: function () {
+    log("borrowMoney");
+    var v = 500;
+    this.loan += v;
+    this.money += Math.floor(v*0.9);
+    var interest = Math.floor(this.loan*0.1);
+    this.chatBox.visible = true;
+    this.chatBox.clear();
+    this.chatBox.addDisplay('"We borrowed $'+v+'.\n'+
+			    ' Interest is $'+interest+'/MO."', 1);
+    this.updateMoney();
+    this.updateCost();
   },
   repayMoney: function () {
     log("repayMoney");
+    var v = 500;
+    if (this.money < v) {
+      this.chatBox.visible = true;
+      this.chatBox.clear();
+      this.chatBox.addDisplay('"We don\'t have enough cash."', 1);
+      return;
+    }
+    this.money -= v;
+    this.loan -= v;
+    var interest = Math.floor(this.loan*0.1);
+    this.chatBox.visible = true;
+    this.chatBox.clear();
+    this.chatBox.addDisplay('"We repayed $'+v+'.\n'+
+			    ' Interest is $'+interest+'/MO."', 1);
+    this.updateMoney();
+    this.updateCost();
   },
   trainWorker: function (worker) {
-    log("hireWorker:", worker);
+    log("trainWorker:", worker);
+    var v = 200;
+    if (this.money < v) {
+      this.chatBox.visible = true;
+      this.chatBox.clear();
+      this.chatBox.addDisplay('"We don\'t have enough cash."', 1);
+      return;
+    }
+    if (2 <= worker.rank) {
+      this.chatBox.visible = true;
+      this.chatBox.clear();
+      this.chatBox.addDisplay('"I\'m already good, Sir."', 1);
+      return;
+    }
+    worker.upgrade();
+    this.money -= v;
+    this.chatBox.visible = true;
+    this.chatBox.clear();
+    this.chatBox.addDisplay('"I become better!\n'+
+			    ' My wage is now $'+worker.wage+'/MO."', 1);
+    this.updateMoney();
+    this.updateCost();
+    this.updateSupply();
   },
   fireWorker: function (worker) {
     log("fireWorker:", worker);
+    for (var i = 0; i < this.workers.length; i++) {
+      var slot = this.workers[i];
+      if (slot.worker === worker) {
+	this.removeObject(worker);
+	slot.worker = null;
+      }
+    }
+    this.updateCost();
+    this.updateSupply();
   },
   upgradeProduct: function () {
     log("upgradeProduct");
+    var v = 100*Math.pow(2,this.quality);
+    if (this.money < v) {
+      this.chatBox.visible = true;
+      this.chatBox.clear();
+      this.chatBox.addDisplay('"We don\'t have enough cash."', 1);
+      return;
+    }
+    this.money -= v;
+    this.quality++;
+    this.chatBox.visible = true;
+    this.chatBox.clear();
+    this.chatBox.addDisplay('"Unit price is now $'+this.quality+'.\n'+
+			    ' Production rate was also affected."', 1);
+    this.updateMoney();
+    this.updateSupply();
   },
   downgradeProduct: function () {
     log("downgradeProduct");
+    if (this.quality <= 1) {
+      this.chatBox.visible = true;
+      this.chatBox.clear();
+      this.chatBox.addDisplay('"We can\'t downgrade anymore."', 1);
+      return;
+    }
+    this.quality--;
+    this.chatBox.visible = true;
+    this.chatBox.clear();
+    this.chatBox.addDisplay('"Unit price is now $'+this.quality+'."', 1);
+    this.updateSupply();
   },
   
 });
