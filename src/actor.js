@@ -112,8 +112,8 @@ define(Actor, Sprite, 'Sprite', {
   },
   
   update: function () {
-    this._Sprite_update();
     this.phase = blink(this.getTime(), this.rate)? 0 : 1;
+    this._Sprite_update();
   },
 
   render: function (ctx, x, y) {

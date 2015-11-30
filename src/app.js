@@ -204,7 +204,7 @@ define(App, Object, '', {
     this.music = this.scene.music;
     
     if (this.music !== null) {
-      playSound(this.music);
+      this.music.play();
     }
   },
 
