@@ -82,6 +82,7 @@ function Worker(bounds)
 {
   this._Employee(bounds, bounds, 2);
   this.zorder = -1;
+  this.rate = 15;
   this.rank = 0;
   this.wage = 0;
 }
@@ -99,6 +100,7 @@ function Assistant(bounds)
 {
   this._Employee(bounds, bounds, 4);
   this.zorder = 0;
+  this.rate = 60;
 }
 
 define(Assistant, Employee, 'Employee', {
@@ -120,6 +122,7 @@ function Kitty(bounds)
   this._Employee(bounds, bounds, 8);
   this.zorder = 0;
   this.qindex = 0;
+  this.rate = 20;
 }
 
 define(Kitty, Employee, 'Employee', {
@@ -148,20 +151,27 @@ function Machine(bounds)
   this._Sprite(bounds);
   this.zorder = 1;
   this.size = 6;
+  this.rate = 16;
+  this.phase = 0;
 }
 define(Machine, Sprite, 'Sprite', {
+  update: function () {
+    this._Sprite_update();
+    this.phase = blink(this.getTime(), this.rate)? 0 : 1;
+  },
+
   render: function (ctx, bx, by) {
     var x = bx+this.bounds.x;
     var y = by+this.bounds.y;
     var w = this.bounds.width;
     var h = this.bounds.height;
     var sprites = this.scene.app.sprites;
-    var tw = sprites.height;
-    var th = sprites.height;
+    var tw = 16;
+    var th = 16;
     for (var i = 0; i < this.size; i++) {
       var tileno = (i == 0)? 7 : 6;
       ctx.drawImage(sprites,
-		    tileno*tw, th-h, w, h,
+		    tileno*tw, th*this.phase, w, h,
 		    x, y, w, h);
       x += w;
     }
@@ -221,6 +231,7 @@ function Fire(bounds, moving)
   this.gravity = 1;
   this.maxspeed = 1;
   this.moving = (moving !== undefined)? moving : false;
+  this.rate = 12;
 }
 
 define(Fire, Movable, 'Movable', {
@@ -247,6 +258,7 @@ function Lightning(bounds)
   this._Actor(bounds, bounds.inflate(-2,0), 11);
   this.velocity = new Vec2(0, 0);
   this.turnNext = 0;
+  this.rate = 11;
 }
 
 define(Lightning, Actor, 'Actor', {
@@ -273,6 +285,7 @@ function Croc(bounds)
 {
   this._Movable(bounds, bounds, 9);
   this.isObstacle = isNotSewer;
+  this.rate = 13;
   this.gravity = 1;
   this.maxspeed = 1;
   this.velocity.x = 1;
@@ -475,6 +488,7 @@ define(Player, Movable, 'Movable', {
       this.invuln--;
     }
     this._Movable_update();
+    this.rate = (this.velocity.x != 0 || this.velocity.y != 0)? 20: 0;
   },
 
 });
