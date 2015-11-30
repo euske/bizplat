@@ -80,7 +80,7 @@ define(Employee, Actor, 'Actor', {
 // Worker
 function Worker(bounds)
 {
-  this._Employee(bounds, bounds, 2);
+  this._Employee(bounds, bounds, 3);
   this.zorder = -1;
   this.rate = 15;
   this.rank = 0;
@@ -91,14 +91,14 @@ define(Worker, Employee, 'Employee', {
   upgrade: function () {
     this.rank++;
     this.wage = (this.rank-1)*50+100;
-    this.tileno = (this.rank < 2)? 2 : 3;
+    this.tileno = (this.rank < 2)? 3 : 4;
   }
 });
 
 // Assistant
 function Assistant(bounds)
 {
-  this._Employee(bounds, bounds, 4);
+  this._Employee(bounds, bounds, 5);
   this.zorder = 0;
   this.rate = 60;
 }
@@ -109,7 +109,7 @@ define(Assistant, Employee, 'Employee', {
 // Researcher
 function Researcher(bounds)
 {
-  this._Employee(bounds, bounds, 5);
+  this._Employee(bounds, bounds, 6);
   this.zorder = 0;
 }
 
@@ -119,7 +119,7 @@ define(Researcher, Employee, 'Employee', {
 // Kitty
 function Kitty(bounds)
 {
-  this._Employee(bounds, bounds, 8);
+  this._Employee(bounds, bounds, 9);
   this.zorder = 0;
   this.qindex = 0;
   this.rate = 20;
@@ -129,7 +129,11 @@ define(Kitty, Employee, 'Employee', {
   update: function () {
     this._Employee_update();
     if (rnd(10) == 0) {
-      this.move(rnd(3)-1, 0);
+      var vx = rnd(3)-1;
+      this.move(vx, 0);
+      if (vx != 0) {
+	this.tileno = (vx < 0)? 9 : 10;
+      }
     }
   },
   
@@ -151,7 +155,7 @@ function Machine(bounds)
   this._Sprite(bounds);
   this.zorder = 1;
   this.size = 6;
-  this.rate = 16;
+  this.rate = 24;
   this.phase = 0;
 }
 define(Machine, Sprite, 'Sprite', {
@@ -169,7 +173,7 @@ define(Machine, Sprite, 'Sprite', {
     var tw = 16;
     var th = 16;
     for (var i = 0; i < this.size; i++) {
-      var tileno = (i == 0)? 7 : 6;
+      var tileno = (i == 0)? 8 : 7;
       ctx.drawImage(sprites,
 		    tileno*tw, th*this.phase, w, h,
 		    x, y, w, h);
@@ -227,7 +231,7 @@ function isExtinguisher(c) {
 }
 function Fire(bounds, moving)
 {
-  this._Movable(bounds, bounds.inflate(-2,0), 10);
+  this._Movable(bounds, bounds.inflate(-2,0), 13);
   this.gravity = 1;
   this.maxspeed = 1;
   this.moving = (moving !== undefined)? moving : false;
@@ -241,6 +245,9 @@ define(Fire, Movable, 'Movable', {
       if (rnd(10) == 0) {
 	var vx = this.velocity.x + (rnd(3)-1);
 	this.velocity.x = clamp(-2, vx, +2);
+	if (vx != 0) {
+	  this.tileno = (vx < 0)? 13 : 14;
+	}
       }
     }
     var tilemap = this.scene.tilemap;
@@ -255,7 +262,7 @@ define(Fire, Movable, 'Movable', {
 // Lightning
 function Lightning(bounds)
 {
-  this._Actor(bounds, bounds.inflate(-2,0), 11);
+  this._Actor(bounds, bounds.inflate(-2,0), 15);
   this.velocity = new Vec2(0, 0);
   this.turnNext = 0;
   this.rate = 11;
@@ -268,6 +275,9 @@ define(Lightning, Actor, 'Actor', {
       this.turnNext = this.scene.ticks+rnd(10,50);
       this.velocity.x = rnd(3)-1;
       this.velocity.y = rnd(3)-1;
+      if (this.velocity.x != 0) {
+	this.tileno = (this.velocity.x < 0)? 15 : 16;
+      }
     }
     this.move(this.velocity.x, this.velocity.y);
     if (!this.scene.world.overlap(this.bounds.overlap)) {
@@ -283,7 +293,7 @@ function isNotSewer(c) {
 }
 function Croc(bounds)
 {
-  this._Movable(bounds, bounds, 9);
+  this._Movable(bounds, bounds, 11);
   this.isObstacle = isNotSewer;
   this.rate = 13;
   this.gravity = 1;
@@ -298,6 +308,9 @@ define(Croc, Movable, 'Movable', {
     if (vx != this.velocity.x) {
       this.velocity.x = -vx;
     }
+    if (this.velocity.x != 0) {
+      this.tileno = (this.velocity.x < 0)? 11 : 12;
+    }
   },
   
 });
@@ -305,12 +318,13 @@ define(Croc, Movable, 'Movable', {
 // Money
 function Money(bounds)
 {
-  this._Movable(bounds, bounds, 12);
+  this._Movable(bounds, bounds, 17);
   this.isObstacle = isNotSewer;
   this.gravity = 1;
   this.maxspeed = 1;
   this.velocity.x = 1;
   this.amount = rnd(1,10);
+  this.rate = 15;
 }
 
 define(Money, Movable, 'Movable', {
@@ -327,7 +341,7 @@ define(Money, Movable, 'Movable', {
 // Food
 function Food(bounds)
 {
-  this._Movable(bounds, bounds, 13);
+  this._Movable(bounds, bounds, 19);
   this.isObstacle = isNotSewer;
   this.gravity = 1;
 }
@@ -488,7 +502,10 @@ define(Player, Movable, 'Movable', {
       this.invuln--;
     }
     this._Movable_update();
-    this.rate = (this.velocity.x != 0 || this.velocity.y != 0)? 20: 0;
+    if (this.velocity.x != 0) {
+      this.tileno = (this.velocity.x < 0)? 1 : 2;
+    }
+    this.rate = (this.velocity.x != 0)? 20: 0;
   },
 
 });
