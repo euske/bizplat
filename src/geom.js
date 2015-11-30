@@ -167,6 +167,26 @@ define(Rectangle, Object, '', {
   inflate: function (dw, dh) {
     return new Rectangle(this.x-dw, this.y-dh, this.width+dw*2, this.height+dh*2);
   },
+  expand: function (dw, dh, vx, vy) {
+    vx = (vx !== undefined)? vx : 0;
+    vy = (vy !== undefined)? vy : 0;
+    var x, y;
+    if (0 < vx) {
+      x = this.x;
+    } else if (vx < 0) {
+      x = this.x-dw;
+    } else {
+      x = this.x-dw/2;
+    }
+    if (0 < vy) {
+      y = this.y;
+    } else if (vx < 0) {
+      y = this.y-dh;
+    } else {
+      y = this.y-dh/2;
+    }
+    return new Rectangle(x, y, this.width+dw, this.height+dh);
+  },
   contains: function (p) {
     return (this.x <= p.x && this.y <= p.y &&
 	    p.x <= this.x+this.width && p.y <= this.y+this.height);
