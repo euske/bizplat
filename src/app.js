@@ -21,7 +21,7 @@ function App(framerate, frame, images, audios, labels)
   this.ctx = getEdgeyContext(this.screen);
 
   // [GAME SPECIFIC CODE]
-  var needflip = {1:true, 8:true, 9:true, 10:true, 11:true, 12:true};
+  var needflip = {1:true, 8:true, 9:true, 10:true, 11:true, 12:true, 14:true};
   this.sprites = makeSprites(this.images.sprites, 16, needflip);
   this.tiles = this.images.tiles;
   this.font = new Font(this.images.font, 'white');

@@ -439,16 +439,23 @@ function Player(bounds, health)
   this._jumpt = -1;
 
   this.health = health;
+  this.ghosty = false;
+  this.ghosted = new Slot(this);
   this.invuln = 0;
 }
 
 define(Player, Movable, 'Movable', {
   usermove: function (v) {
     this.velocity.x = v.x*this.speed;
+    if (this.ghosty) {
+      this.velocity.y = v.y*this.speed;
+    }
   },
 
   collide: function (obj) {
-    if (obj instanceof Fire ||
+    if (this.ghosty) {
+      ;
+    } else if (obj instanceof Fire ||
 	obj instanceof Lightning ||
 	obj instanceof Croc) {
       this.hurt();
@@ -464,18 +471,26 @@ define(Player, Movable, 'Movable', {
   },
   
   hurt: function () {
-    if (this.invuln === 0) {
+    if (this.ghosty) {
+      ;
+    } else if (this.invuln === 0) {
       playSound(this.scene.app.audios.hurt);
-      this.invuln = this.scene.app.framerate;;
       this.health--;
       if (this.health == 0) {
-	this.die();
+	this.ghosty = true;
+	this.ghosted.signal();
+	this.velocity.x = this.velocity.y = 0;
+	this._jumpt = -1;
+      } else {
+	this.invuln = this.scene.app.framerate;
       }
     }
   },
   
   jump: function (jumping) {
-    if (jumping) {
+    if (this.ghosty) {
+      ;
+    } else if (jumping) {
       if (this._landed) {
 	this._jumpt = 0;
 	this.velocity.y = this.jumpacc;
@@ -494,18 +509,24 @@ define(Player, Movable, 'Movable', {
   },
 
   update: function () {
-    if (0 <= this._jumpt && this._jumpt < this.maxacctime) {
-      this._jumpt++;
-      this.velocity.y -= this.gravity;
+    if (this.ghosty) {
+      this.tileno = (this.velocity.x < 0)? 20 : 21;
+      this.move(this.velocity.x, this.velocity.y);
+      this._Actor_update();
+    } else {
+      if (0 <= this._jumpt && this._jumpt < this.maxacctime) {
+	this._jumpt++;
+	this.velocity.y -= this.gravity;
+      }
+      if (0 < this.invuln) {
+	this.invuln--;
+      }
+      this._Movable_update();
+      if (this.velocity.x != 0) {
+	this.tileno = (this.velocity.x < 0)? 1 : 2;
+      }
+      this.rate = (this.velocity.x != 0)? 20: 0;
     }
-    if (0 < this.invuln) {
-      this.invuln--;
-    }
-    this._Movable_update();
-    if (this.velocity.x != 0) {
-      this.tileno = (this.velocity.x < 0)? 1 : 2;
-    }
-    this.rate = (this.velocity.x != 0)? 20: 0;
   },
 
 });
@@ -640,7 +661,7 @@ define(Game, GameScene, 'GameScene', {
     this.height0 = this.chatBox.frame.height+32;
     this.height1 = this.window.height-this.chatBox.frame.height-32;
     this.chatBox.bounds = new Rectangle(0, this.height1);
-    this.player.died.subscribe(function (obj) { scene.playerDied(); });
+    this.player.ghosted.subscribe(function (obj) { scene.playerDied(); });
 
     this.money = 1000;
     this.loan = 0;
@@ -741,7 +762,7 @@ define(Game, GameScene, 'GameScene', {
       } else {
 	this.chatBox.visible = false;
       }
-    } else {
+    } else if (!this.player.ghosty) {
       var sym = getKeySym(key);
       if (sym == 'up' || sym == 'down') {
 	var actors = this.findObjects(
