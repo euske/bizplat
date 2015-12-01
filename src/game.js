@@ -464,7 +464,7 @@ define(Player, Movable, 'Movable', {
       playSound(this.scene.app.audios.pick);
       obj.die();
     } else if (obj instanceof Food) {
-      this.health = Math.min(5, this.health++);
+      this.health = Math.min(7, this.health+1);
       playSound(this.scene.app.audios.pick);
       obj.die();
     }
@@ -681,7 +681,6 @@ define(Game, GameScene, 'GameScene', {
     this.updateCost();
     this.updateSupply();
     this.updateMoney();
-    
   },
   
   setCenter: function (rect) {
@@ -792,6 +791,10 @@ define(Game, GameScene, 'GameScene', {
     this.barDemand.value = this.demand;
     this.barSupply.value = this.supply;
     this.chatBox.update();
+    // loop music.
+    if (51.4 < this.music.currentTime) {
+      this.music.currentTime = 10.3;
+    }
   },
 
   updateCost: function () {
